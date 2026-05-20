@@ -1,0 +1,321 @@
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Boolean, ForeignKey, TIMESTAMP
+from sqlalchemy.sql import func
+from backend.database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(100), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    full_name = Column(String(200))
+    email = Column(String(200))
+    role = Column(String(50), default="Staff")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    last_login = Column(DateTime, nullable=True)
+
+
+class LoginLog(Base):
+    __tablename__ = "login_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    login_time = Column(DateTime, server_default=func.now())
+    status = Column(String(20))
+    ip_address = Column(String(50), nullable=True)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    table_name = Column(String(100), index=True)
+    record_id = Column(Integer, index=True)
+    action = Column(String(50), index=True)
+    username = Column(String(100), index=True)
+    summary = Column(String(500))
+    details = Column(Text)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+
+
+class RentRequirement(Base):
+    __tablename__ = "rent_requirements"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String(20))
+    client_name = Column(String(200))
+    client_status = Column(String(50), default="Client")
+    broker = Column(String(200))
+    contact = Column(String(100))
+    property_requires = Column(String(200))
+    size = Column(String(100))
+    measurement = Column(String(100))
+    budget = Column(Float, default=0)
+    floor = Column(String(50))
+    location = Column(String(200))
+    option1 = Column(String(200))
+    option2 = Column(String(200))
+    facilities = Column(Text)
+    client_broker = Column(String(200))
+    bachelor_family = Column(String(50))
+    remarks = Column(Text)
+    workflow_stage = Column(String(50), default="Lead")
+    priority = Column(String(20), default="Medium")
+    next_follow_up = Column(String(20))
+    assigned_to = Column(String(100))
+    last_contacted = Column(String(20))
+    deal_probability = Column(Float, default=10.0)
+    expected_close_value = Column(Float, default=0)
+    closed_at = Column(DateTime, nullable=True)
+    lost_reason = Column(Text)
+    approval_status = Column(String(50), default="Pending")
+    approval_comment = Column(Text)
+    approved_by = Column(String(100))
+    approved_at = Column(DateTime, nullable=True)
+    created_by = Column(String(100))
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class RentAvailability(Base):
+    __tablename__ = "rent_availability"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String(20))
+    owner_name = Column(String(200))
+    contact = Column(String(100))
+    property_availability = Column(String(200))
+    size = Column(String(100))
+    measurement = Column(String(100))
+    monthly_rent = Column(Float, default=0)
+    floor = Column(String(50))
+    location = Column(String(200))
+    bedrooms = Column(String(50))
+    bathrooms = Column(String(50))
+    furnishing = Column(String(100))
+    parking = Column(String(100))
+    nearby_landmarks = Column(Text)
+    area_notes = Column(Text)
+    verification_status = Column(String(50), default="Unverified")
+    photo_paths = Column(Text)
+    deposit = Column(Float, default=0)
+    maintenance_charge = Column(Float, default=0)
+    facilities = Column(Text)
+    client_broker = Column(String(200))
+    bachelor_family = Column(String(50))
+    remarks = Column(Text)
+    status = Column(String(50), default="Available")
+    workflow_stage = Column(String(50), default="Lead")
+    priority = Column(String(20), default="Medium")
+    next_follow_up = Column(String(20))
+    assigned_to = Column(String(100))
+    last_contacted = Column(String(20))
+    deal_probability = Column(Float, default=10.0)
+    expected_close_value = Column(Float, default=0)
+    closed_at = Column(DateTime, nullable=True)
+    lost_reason = Column(Text)
+    approval_status = Column(String(50), default="Pending")
+    approval_comment = Column(Text)
+    approved_by = Column(String(100))
+    approved_at = Column(DateTime, nullable=True)
+    created_by = Column(String(100))
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class SaleRequirement(Base):
+    __tablename__ = "sale_requirements"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String(20))
+    client_name = Column(String(200))
+    client_status = Column(String(50), default="Client")
+    broker = Column(String(200))
+    contact = Column(String(100))
+    property_requires = Column(String(200))
+    size = Column(String(100))
+    measurement = Column(String(100))
+    budget = Column(Float, default=0)
+    floor = Column(String(50))
+    location = Column(String(200))
+    option1 = Column(String(200))
+    option2 = Column(String(200))
+    facilities = Column(Text)
+    client_broker = Column(String(200))
+    bachelor_family = Column(String(50))
+    remarks = Column(Text)
+    workflow_stage = Column(String(50), default="Lead")
+    priority = Column(String(20), default="Medium")
+    next_follow_up = Column(String(20))
+    assigned_to = Column(String(100))
+    last_contacted = Column(String(20))
+    deal_probability = Column(Float, default=10.0)
+    expected_close_value = Column(Float, default=0)
+    closed_at = Column(DateTime, nullable=True)
+    lost_reason = Column(Text)
+    approval_status = Column(String(50), default="Pending")
+    approval_comment = Column(Text)
+    approved_by = Column(String(100))
+    approved_at = Column(DateTime, nullable=True)
+    created_by = Column(String(100))
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class SaleAvailability(Base):
+    __tablename__ = "sale_availability"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String(20))
+    owner_name = Column(String(200))
+    contact = Column(String(100))
+    property_availability = Column(String(200))
+    size = Column(String(100))
+    measurement = Column(String(100))
+    demand = Column(Float, default=0)
+    floor = Column(String(50))
+    location = Column(String(200))
+    bedrooms = Column(String(50))
+    bathrooms = Column(String(50))
+    furnishing = Column(String(100))
+    parking = Column(String(100))
+    nearby_landmarks = Column(Text)
+    area_notes = Column(Text)
+    verification_status = Column(String(50), default="Unverified")
+    photo_paths = Column(Text)
+    option1 = Column(String(200))
+    option2 = Column(String(200))
+    facilities = Column(Text)
+    client_broker = Column(String(200))
+    bachelor_family = Column(String(50))
+    remarks = Column(Text)
+    status = Column(String(50), default="Available")
+    workflow_stage = Column(String(50), default="Lead")
+    priority = Column(String(20), default="Medium")
+    next_follow_up = Column(String(20))
+    assigned_to = Column(String(100))
+    last_contacted = Column(String(20))
+    deal_probability = Column(Float, default=10.0)
+    expected_close_value = Column(Float, default=0)
+    closed_at = Column(DateTime, nullable=True)
+    lost_reason = Column(Text)
+    approval_status = Column(String(50), default="Pending")
+    approval_comment = Column(Text)
+    approved_by = Column(String(100))
+    approved_at = Column(DateTime, nullable=True)
+    created_by = Column(String(100))
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class IncomeTransaction(Base):
+    __tablename__ = "income_transactions"
+    id = Column(Integer, primary_key=True, index=True)
+    transaction_date = Column(String(20))
+    income_type = Column(String(100))
+    amount = Column(Float, default=0)
+    tenant_name = Column(String(200))
+    description = Column(Text)
+    receipt_no = Column(String(100))
+    payment_method = Column(String(50), default="Cash")
+    created_by = Column(String(100))
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class ExpenseTransaction(Base):
+    __tablename__ = "expense_transactions"
+    id = Column(Integer, primary_key=True, index=True)
+    transaction_date = Column(String(20))
+    expense_category = Column(String(100))
+    amount = Column(Float, default=0)
+    vendor_name = Column(String(200))
+    description = Column(Text)
+    invoice_no = Column(String(100))
+    payment_method = Column(String(50), default="Cash")
+    created_by = Column(String(100))
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class Employee(Base):
+    __tablename__ = "employees"
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(String(50))
+    full_name = Column(String(200))
+    cnic = Column(String(50))
+    phone = Column(String(50))
+    email = Column(String(200))
+    position = Column(String(100))
+    department = Column(String(100))
+    hire_date = Column(String(20))
+    base_salary = Column(Float, default=0)
+    commission_rate = Column(Float, default=5.0)
+    status = Column(String(50), default="Active")
+    address = Column(Text)
+    notes = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class Client(Base):
+    __tablename__ = "clients"
+    id = Column(Integer, primary_key=True, index=True)
+    client_name = Column(String(200))
+    cnic = Column(String(50))
+    phone = Column(String(50))
+    email = Column(String(200))
+    address = Column(Text)
+    client_type = Column(String(50), default="Tenant")
+    notes = Column(Text)
+    status = Column(String(50), default="Active")
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class Property(Base):
+    __tablename__ = "properties"
+    id = Column(Integer, primary_key=True, index=True)
+    property_code = Column(String(50))
+    title = Column(String(200))
+    property_type = Column(String(100))
+    status = Column(String(50), default="Available")
+    owner_name = Column(String(200))
+    owner_contact = Column(String(100))
+    location = Column(String(200))
+    area = Column(String(100))
+    floor = Column(String(50))
+    bedrooms = Column(String(50))
+    bathrooms = Column(String(50))
+    furnishing = Column(String(100))
+    parking = Column(String(100))
+    nearby_landmarks = Column(Text)
+    area_notes = Column(Text)
+    verification_status = Column(String(50), default="Unverified")
+    photo_paths = Column(Text)
+    monthly_rent = Column(Float, default=0)
+    sale_price = Column(Float, default=0)
+    maintenance_charge = Column(Float, default=0)
+    facilities = Column(Text)
+    description = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class Attendance(Base):
+    __tablename__ = "attendance"
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"))
+    date = Column(String(20))
+    check_in = Column(String(20))
+    check_out = Column(String(20))
+    status = Column(String(50), default="Present")
+    notes = Column(Text)
+
+
+class SalaryPayment(Base):
+    __tablename__ = "salary_payments"
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"))
+    payment_date = Column(String(20))
+    month = Column(String(20))
+    year = Column(String(10))
+    base_salary = Column(Float, default=0)
+    bonus = Column(Float, default=0)
+    deductions = Column(Float, default=0)
+    net_salary = Column(Float, default=0)
+    payment_method = Column(String(50))
+    notes = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+    key = Column(String(100), primary_key=True)
+    value = Column(Text)

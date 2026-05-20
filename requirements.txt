@@ -1,0 +1,22 @@
+# Web framework
+fastapi
+uvicorn[standard]
+slowapi
+# Database
+sqlalchemy
+aiosqlite
+
+# Auth
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt
+python-multipart
+
+# Desktop (legacy)
+Pillow
+fpdf2
+pandas
+numpy
+
+# Modern desktop UI preview
+PySide6

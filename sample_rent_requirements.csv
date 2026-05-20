@@ -1,0 +1,6 @@
+date_created,client_name,contact_phone,contact_email,property_type,size_beds,size_bath,sq_ft,floor_no,location,budget_min,budget_max,maintenance_budget,facilities,description
+2026-05-06,Ahmed Ali,03001234567,ahmed@email.com,Apartment,3,2,1500,5,Karachi,300000,500000,5000,"Gym, Pool, Parking","Modern apartment with great view"
+2026-05-06,Fatima Khan,03009876543,fatima@email.com,House,4,3,2500,1,Lahore,400000,700000,8000,"Garden, Garage, Security","Large family house with garden"
+2026-05-05,Hassan Malik,03005555555,hassan@email.com,Flat,2,1,800,10,Islamabad,200000,350000,3000,"Balcony, Parking","Cozy apartment near market"
+2026-05-05,Ayesha Siddiqui,03015555555,ayesha@email.com,Villa,5,4,4000,0,Karachi,1000000,1500000,15000,"Garden, Pool, Garage","Luxury villa in prime location"
+2026-05-04,Muhammad Hassan,03035555555,hassan2@email.com,Studio,1,1,400,12,Peshawar,100000,200000,2000,"Parking, Security","Studio apartment for students"

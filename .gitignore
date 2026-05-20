@@ -1,0 +1,93 @@
+# Python/runtime
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+
+# Virtual environments
+.venv/
+.venv*/
+venv/
+env/
+
+# Local databases and private CRM data
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.accdb
+*.bak
+*.backup
+
+# Logs and runtime output
+*.log
+*.out
+*.err
+stdout.txt
+stderr.txt
+qt_*stdout.txt
+qt_*stderr.txt
+outputs/
+crm.log
+
+# Local secrets/config
+.env
+.env.*
+*.secret
+*.key
+*.pem
+*.pfx
+*.p12
+*.crt
+*.csr
+.crm_jwt_secret
+
+# Build/distribution artifacts
+build/
+build_final/
+dist/
+dist_final/
+dist_final_fixed/
+installer_output/
+installer_staging/
+installer_test/
+*.exe
+*.msi
+*.zip
+*.7z
+*.rar
+
+# Local IDE/system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Generated documents/cache
+docx_qa/
+*.pptx
+*.docx
+*.pdf
+
+# Data exports/imports
+*.csv
+!sample_*.csv
+
+# Downloaded tunnel/helper binaries
+tools/cloudflared.exe
+tools/render_word_pages.ps1
+tools/revise_grammar_book.py
+
+# Backup/legacy scratch files
+*_bak.py
+*.old.py
+*_old.py
+scratch_*.py
+
+# AI/tooling notes that are not part of the shipped CRM
+AGENTS.md
+CLAUDE.md

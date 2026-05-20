@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real Estate CRM</title>
+<link rel="stylesheet" href="styles.css?v=2026051804">
+</head>
+<body>
+<div id="app">
+  <div id="login-screen" class="screen">
+    <div class="glass-card login-card">
+      <h1>Real Estate CRM</h1>
+      <p class="subtitle">Sign in to your account</p>
+      <form id="login-form">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="login-username" placeholder="Enter username" required>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="login-password" placeholder="Enter password" required>
+        </div>
+        <div id="login-error" class="error-msg"></div>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="main-screen" class="screen hidden">
+    <aside id="sidebar">
+      <div class="sidebar-header brand-card">
+        <div class="brand-icon" aria-hidden="true"></div>
+        <div>
+          <h2>Real Estate CRM</h2>
+          <p>Property operations</p>
+        </div>
+      </div>
+      <div class="user-card">
+        <h3>Administrator</h3>
+        <span id="user-badge"></span>
+      </div>
+      <nav id="sidebar-nav">
+        <div class="nav-section">Overview</div>
+        <a class="nav-item active" data-tab="dashboard"><span class="icon icon-dashboard"></span> Dashboard</a>
+        <div class="nav-section">Deal Desk</div>
+        <a class="nav-item" data-tab="rent"><span class="icon icon-rent"></span> Rent Dealings</a>
+        <a class="nav-item" data-tab="sale"><span class="icon icon-sale"></span> Sale Dealings</a>
+        <div class="nav-section">Records</div>
+        <a class="nav-item" data-tab="properties"><span class="icon icon-properties"></span> Properties</a>
+        <a class="nav-item" data-tab="clients"><span class="icon icon-clients"></span> Clients</a>
+        <a class="nav-item" data-tab="find"><span class="icon icon-find"></span> Find</a>
+        <a class="nav-item" data-tab="followups"><span class="icon icon-followups"></span> Follow-ups</a>
+        <div class="nav-section">Operations</div>
+        <a class="nav-item" data-tab="financial"><span class="icon icon-financial"></span> Financial</a>
+        <a class="nav-item" data-tab="employees"><span class="icon icon-employees"></span> Employees</a>
+        <a class="nav-item" data-tab="reports"><span class="icon icon-reports"></span> Reports</a>
+        <a class="nav-item" data-tab="audit"><span class="icon icon-audit"></span> Audit</a>
+      </nav>
+      <div class="sidebar-footer online-card">
+        <div class="online-title"><span class="online-dot"></span> Browser login online</div>
+        <div class="online-line">Browser: <span id="browser-url">loading...</span></div>
+        <div class="online-line">Desktop API: <span id="desktop-api-url">loading...</span></div>
+        <button id="btn-settings" class="btn btn-sm">Settings</button>
+        <button id="btn-logout" class="btn btn-sm">Logout</button>
+      </div>
+    </aside>
+
+    <main id="main-content">
+      <header id="topbar">
+        <div>
+          <div id="page-subtitle">MBM Enterprises</div>
+          <div id="page-title">Dashboard</div>
+        </div>
+        <div id="topbar-actions">
+          <button id="btn-find-shortcut" class="btn" type="button">Find</button>
+          <button id="btn-refresh" class="btn" type="button" title="Refresh current view">Refresh</button>
+          <span id="sync-status" class="status-pill">Ready</span>
+        </div>
+      </header>
+
+      <section id="tab-dashboard" class="tab-content active">
+        <div class="workspace-heading">
+          <div>
+            <h1>Business snapshot</h1>
+            <p>Current rent, sale, client, and approval totals.</p>
+          </div>
+        </div>
+        <div id="dashboard-cards" class="card-grid"></div>
+      </section>
+
+      <section id="tab-rent" class="tab-content">
+        <div class="deal-command-row">
+          <button class="btn add-btn" type="button" data-table="rent_requirements">New Requirement</button>
+          <button class="btn add-btn" type="button" data-table="rent_availability">New Availability</button>
+          <button class="btn btn-primary module-report-btn" type="button" data-report-kind="rent">Generate Rent Report</button>
+        </div>
+        <div class="sub-nav">
+          <button class="sub-tab active" data-sub="rent_requirements">Requirements</button>
+          <button class="sub-tab" data-sub="rent_availability">Availability</button>
+        </div>
+        <div class="table-actions"><button class="btn btn-primary add-btn" data-table="rent_requirements">+ Add</button></div>
+        <div class="table-container"><table id="rent-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="tab-sale" class="tab-content">
+        <div class="deal-command-row">
+          <button class="btn add-btn" type="button" data-table="sale_requirements">New Requirement</button>
+          <button class="btn add-btn" type="button" data-table="sale_availability">New Availability</button>
+          <button class="btn btn-primary module-report-btn" type="button" data-report-kind="sale">Generate Sale Report</button>
+        </div>
+        <div class="sub-nav">
+          <button class="sub-tab active" data-sub="sale_requirements">Requirements</button>
+          <button class="sub-tab" data-sub="sale_availability">Availability</button>
+        </div>
+        <div class="table-actions"><button class="btn btn-primary add-btn" data-table="sale_requirements">+ Add</button></div>
+        <div class="table-container"><table id="sale-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="tab-find" class="tab-content">
+        <div class="find-panel glass-card">
+          <div class="field find-query">
+            <label>Find</label>
+            <input type="search" id="find-query" placeholder="Name, contact, property, location, budget, facilities, remarks">
+          </div>
+          <div class="field find-source">
+            <label>Sort</label>
+            <select id="find-source">
+              <option value="">All</option>
+              <option value="rent_requirements">Rent Requirement</option>
+              <option value="rent_availability">Rent Availability</option>
+              <option value="sale_requirements">Sale Requirement</option>
+              <option value="sale_availability">Sale Availability</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="find-button">Find</button>
+        </div>
+        <div id="find-status" class="muted-line">Search rent and sale records visible to your user role.</div>
+        <div class="table-container"><table id="find-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="tab-followups" class="tab-content">
+        <div class="workspace-heading">
+          <div>
+            <h1>Follow-ups</h1>
+            <p>Due calls, hot leads, and next actions.</p>
+          </div>
+        </div>
+        <div id="followup-summary" class="card-grid"></div>
+        <div class="table-container"><table id="followups-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="tab-financial" class="tab-content">
+        <div class="sub-nav">
+          <button class="sub-tab active" data-sub="income_transactions">Income</button>
+          <button class="sub-tab" data-sub="expense_transactions">Expenses</button>
+        </div>
+        <div id="financial-summary" class="card-grid"></div>
+        <div class="table-actions"><button class="btn btn-primary add-btn" data-table="income_transactions">+ Add</button></div>
+        <div class="table-container"><table id="financial-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="tab-employees" class="tab-content">
+        <div class="sub-nav">
+          <button class="sub-tab active" data-sub="employees">All Employees</button>
+          <button class="sub-tab" data-sub="attendance">Attendance</button>
+          <button class="sub-tab" data-sub="salary_payments">Salary</button>
+        </div>
+        <div class="table-actions"><button class="btn btn-primary add-btn" data-table="employees">+ Add</button></div>
+        <div class="table-container"><table id="employee-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="tab-clients" class="tab-content">
+        <div class="table-actions"><button class="btn btn-primary add-btn" data-table="clients">+ Add</button></div>
+        <div class="table-container"><table id="clients-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="tab-properties" class="tab-content">
+        <div class="table-actions"><button class="btn btn-primary add-btn" data-table="properties">+ Add</button></div>
+        <div class="table-container"><table id="properties-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="tab-reports" class="tab-content">
+        <div id="reports-content"></div>
+      </section>
+
+      <section id="tab-audit" class="tab-content">
+        <div class="workspace-heading">
+          <div>
+            <h1>Audit History</h1>
+            <p>Recent edits, approvals, deletes, and workflow changes.</p>
+          </div>
+        </div>
+        <div class="table-actions audit-actions">
+          <button id="btn-run-backup" class="btn btn-primary" type="button">Backup Now</button>
+          <span id="backup-status" class="muted-line"></span>
+        </div>
+        <div class="table-container"><table id="audit-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div id="modal-overlay" class="hidden">
+  <div id="modal" class="glass-card">
+    <div id="modal-header"><h3 id="modal-title">Form</h3><button id="modal-close">&times;</button></div>
+    <div id="modal-body"></div>
+    <div id="modal-footer"><button id="modal-cancel" class="btn">Cancel</button><button id="modal-save" class="btn btn-primary">Save</button></div>
+  </div>
+</div>
+
+<script src="app.js?v=2026051804"></script>
+</body>
+</html>

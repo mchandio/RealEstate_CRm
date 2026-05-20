@@ -1,0 +1,12 @@
+transaction_date,property_id,expense_category,amount,vendor_name,description,invoice_no
+2026-05-01,1,maintenance,5000,Fix-It Services,Monthly maintenance,INV001
+2026-05-01,2,property_tax,3000,Municipality,Monthly property tax,INV002
+2026-05-02,3,utilities,1500,Water Board,Water and electricity,INV003
+2026-05-03,4,cleaning,2000,Clean Pro,Monthly cleaning,INV004
+2026-05-05,1,insurance,8000,Insurance Company,Property insurance,INV005
+2026-05-07,2,maintenance,4000,Repair Hub,AC repair and maintenance,INV006
+2026-05-10,3,marketing,3000,Digital Ads,Social media marketing,INV007
+2026-05-12,1,commissions,10000,Employee Payroll,Staff commission payment,INV008
+2026-05-15,4,utilities,2500,Utility Provider,Monthly utilities,INV009
+2026-05-18,2,legal,5000,Legal Firm,Documentation and verification,INV010
+2026-05-20,3,administration,2000,Office Supplies,Office materials and supplies,INV011

@@ -1,0 +1,11 @@
+transaction_date,property_id,income_type,amount,tenant_name,description,receipt_no
+2026-05-01,1,rental_income,45000,Ahmed Ali,May rent payment,REC001
+2026-05-01,2,rental_income,60000,Hassan Malik,May rent payment,REC002
+2026-05-01,3,rental_income,25000,Fatima Khan,May rent payment,REC003
+2026-05-05,1,late_payment_charge,2000,Ahmed Ali,Late payment penalty,REC004
+2026-05-08,4,rental_income,120000,Zainab Ahmed,May rent payment,REC005
+2026-05-10,2,deposit_returned,60000,Hassan Malik,Security deposit return,REC006
+2026-05-12,1,maintenance_charge,1000,Ahmed Ali,Extra maintenance charge,REC007
+2026-05-15,3,rental_income,25000,Fatima Khan,Overdue rent,REC008
+2026-05-18,4,rental_income,120000,Zainab Ahmed,Advance payment next month,REC009
+2026-05-20,5,brokerage_commission,15000,N/A,Commission on closed deal,COM001
