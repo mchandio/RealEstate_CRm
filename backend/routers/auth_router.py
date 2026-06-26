@@ -1,5 +1,7 @@
+import os
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.models import User, LoginLog
@@ -15,9 +17,36 @@ LOGIN_FAILURE_LIMIT = 8
 _login_failures: dict[str, list[datetime]] = {}
 
 
+def _normalize_username(username: str | None) -> str:
+    return str(username or "").strip()
+
+
+def _header_value(headers, name: str) -> str:
+    for candidate in (name, name.title(), name.upper()):
+        value = headers.get(candidate)
+        if value:
+            return str(value)
+    try:
+        for key, value in headers.items():
+            if str(key).lower() == name and value:
+                return str(value)
+    except AttributeError:
+        pass
+    return ""
+
+
+def _client_ip(request: Request) -> str:
+    if os.getenv("CRM_TRUST_PROXY_HEADERS") == "1":
+        headers = getattr(request, "headers", {}) or {}
+        for name in ("cf-connecting-ip", "x-forwarded-for", "x-real-ip"):
+            value = _header_value(headers, name)
+            if value:
+                return str(value).split(",", 1)[0].strip() or "unknown"
+    return request.client.host if request.client else "unknown"
+
+
 def _login_key(request: Request, username: str) -> str:
-    ip_address = request.client.host if request.client else "unknown"
-    return f"{ip_address}:{username.strip().lower()}"
+    return f"{_client_ip(request)}:{_normalize_username(username).lower()}"
 
 
 def _recent_login_failures(key: str) -> list[datetime]:
@@ -27,11 +56,10 @@ def _recent_login_failures(key: str) -> list[datetime]:
     return recent
 
 
-def _check_login_throttle(request: Request, username: str) -> str:
-    key = _login_key(request, username)
+def _login_is_throttled(key: str) -> bool:
     if len(_recent_login_failures(key)) >= LOGIN_FAILURE_LIMIT:
-        raise HTTPException(status_code=429, detail="Too many failed login attempts. Try again later.")
-    return key
+        return True
+    return False
 
 
 def _record_login_failure(key: str) -> None:
@@ -44,30 +72,48 @@ def _record_login_success(key: str) -> None:
     _login_failures.pop(key, None)
 
 
+def _find_active_user_by_username(db: Session, username: str) -> User | None:
+    normalized = _normalize_username(username)
+    if not normalized:
+        return None
+    return (
+        db.query(User)
+        .filter(
+            func.lower(func.trim(User.username)) == normalized.lower(),
+            User.is_active == True,
+        )
+        .first()
+    )
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    throttle_key = _check_login_throttle(request, req.username)
-    ip_address = request.client.host if request.client else None
-    user = db.query(User).filter(User.username == req.username, User.is_active == True).first()
+    username = _normalize_username(req.username)
+    throttle_key = _login_key(request, username)
+    ip_address = _client_ip(request)
+    user = _find_active_user_by_username(db, username)
+    if user and verify_password(req.password, user.password_hash):
+        _record_login_success(throttle_key)
+        user.last_login = datetime.now()
+        user.role = normalize_role(user.role)
+        db.add(LoginLog(user_id=user.id, login_time=datetime.now(), status="Success", ip_address=ip_address))
+        db.commit()
+        token = create_access_token({"sub": str(user.id), "role": user.role})
+        return TokenResponse(
+            access_token=token,
+            user={
+                "id": user.id, "username": user.username,
+                "full_name": user.full_name, "email": user.email,
+                "role": normalize_role(user.role), "is_active": user.is_active,
+            }
+        )
+    if _login_is_throttled(throttle_key):
+        raise HTTPException(status_code=429, detail="Too many failed login attempts. Try again later.")
     if not user or not verify_password(req.password, user.password_hash):
         _record_login_failure(throttle_key)
         db.add(LoginLog(user_id=None, login_time=datetime.now(), status="Failed", ip_address=ip_address))
         db.commit()
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    _record_login_success(throttle_key)
-    user.last_login = datetime.now()
-    user.role = normalize_role(user.role)
-    db.add(LoginLog(user_id=user.id, login_time=datetime.now(), status="Success", ip_address=ip_address))
-    db.commit()
-    token = create_access_token({"sub": str(user.id), "role": user.role})
-    return TokenResponse(
-        access_token=token,
-        user={
-            "id": user.id, "username": user.username,
-            "full_name": user.full_name, "email": user.email,
-            "role": normalize_role(user.role), "is_active": user.is_active,
-        }
-    )
 
 
 @router.get("/me")
@@ -117,16 +163,19 @@ def create_user(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("users")),
 ):
+    username = _normalize_username(req.username)
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required")
     if len(req.password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     role = normalize_role(req.role)
     if role not in ROLE_PERMISSIONS:
         raise HTTPException(status_code=400, detail="Invalid role")
-    existing = db.query(User).filter(User.username == req.username).first()
+    existing = db.query(User).filter(func.lower(func.trim(User.username)) == username.lower()).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
     new_user = User(
-        username=req.username,
+        username=username,
         password_hash=hash_password(req.password),
         full_name=req.full_name,
         email=req.email,
@@ -167,7 +216,20 @@ def update_user(
     if not u:
         raise HTTPException(status_code=404, detail="User not found")
     if req.username is not None:
-        u.username = req.username
+        username = _normalize_username(req.username)
+        if not username:
+            raise HTTPException(status_code=400, detail="Username is required")
+        existing = (
+            db.query(User)
+            .filter(
+                User.id != user_id,
+                func.lower(func.trim(User.username)) == username.lower(),
+            )
+            .first()
+        )
+        if existing:
+            raise HTTPException(status_code=400, detail="Username already exists")
+        u.username = username
     if req.full_name is not None:
         u.full_name = req.full_name
     if req.email is not None:

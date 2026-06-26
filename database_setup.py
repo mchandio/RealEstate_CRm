@@ -348,13 +348,33 @@ class DatabaseSetup:
             ("closed_at", "TIMESTAMP"),
             ("lost_reason", "TEXT"),
         ]
+        phase1_common_columns = [
+            ("size", "TEXT"),
+            ("measurement", "TEXT"),
+            ("measurement_unit", "TEXT"),
+            ("contact", "TEXT"),
+            ("facilities", "TEXT"),
+            ("location", "TEXT"),
+        ]
         requirement_columns = [
             ("client_status", "TEXT DEFAULT 'Client'"),
             ("broker", "TEXT"),
+            ("property_requires", "TEXT"),
+            ("budget", "REAL DEFAULT 0"),
+        ]
+        availability_columns = [
+            ("client_broker", "TEXT DEFAULT 'Owner'"),
+            ("property_availability", "TEXT"),
+            ("owner_phone", "TEXT"),
+            ("building_name", "TEXT"),
         ]
         for table in ("rent_requirements", "rent_availability", "sale_requirements", "sale_availability"):
             c.execute(f"PRAGMA table_info({table})")
             existing = {row[1] for row in c.fetchall()}
+            for column, ddl in phase1_common_columns:
+                if column not in existing:
+                    c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+                    existing.add(column)
             for column, ddl in workflow_columns:
                 if column not in existing:
                     c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
@@ -370,6 +390,12 @@ class DatabaseSetup:
                                   SET broker=preferred_broker
                                   WHERE (broker IS NULL OR broker='')
                                     AND preferred_broker IS NOT NULL AND preferred_broker<>''""")
+            else:
+                for column, ddl in availability_columns:
+                    if column not in existing:
+                        c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+                        existing.add(column)
+                c.execute(f"UPDATE {table} SET client_broker='Owner' WHERE client_broker IS NULL OR client_broker=''")
             c.execute(f"UPDATE {table} SET workflow_stage='Lead' WHERE workflow_stage IS NULL OR workflow_stage=''")
             c.execute(f"UPDATE {table} SET priority='Medium' WHERE priority IS NULL OR priority=''")
 

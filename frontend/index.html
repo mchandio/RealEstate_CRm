@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Real Estate CRM</title>
-<link rel="stylesheet" href="styles.css?v=2026051804">
+<link rel="stylesheet" href="styles.css?v=2026060903">
 </head>
 <body>
 <div id="app">
@@ -28,7 +28,103 @@
   </div>
 
   <div id="main-screen" class="screen hidden">
-    <aside id="sidebar">
+    <!-- Top Menu Bar -->
+    <div id="top-menu-bar">
+      <div class="menu-item" data-menu="file">
+        File
+        <div class="menu-dropdown" id="menu-file">
+          <div class="menu-dropdown-item" data-action="new">New Record</div>
+          <div class="menu-dropdown-item" data-action="edit">Edit</div>
+          <div class="menu-dropdown-item" data-action="delete">Delete</div>
+          <div class="menu-dropdown-item separator" data-action="import">Import</div>
+          <div class="menu-dropdown-item" data-action="export">Export</div>
+          <div class="menu-dropdown-item separator" data-action="print">Print</div>
+          <div class="menu-dropdown-item" data-action="exit">Exit</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="view">
+        View
+        <div class="menu-dropdown" id="menu-view">
+          <div class="menu-dropdown-item" data-action="toggle-sidebar">Toggle Sidebar</div>
+          <div class="menu-dropdown-item separator" data-action="dashboard">Dashboard</div>
+          <div class="menu-dropdown-item" data-action="refresh">Refresh</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="dealings">
+        Dealings
+        <div class="menu-dropdown" id="menu-dealings">
+          <div class="menu-dropdown-item" data-action="rent-requirements">Rent Requirements</div>
+          <div class="menu-dropdown-item" data-action="rent-availability">Rent Availability</div>
+          <div class="menu-dropdown-item separator" data-action="sale-requirements">Sale Requirements</div>
+          <div class="menu-dropdown-item" data-action="sale-availability">Sale Availability</div>
+          <div class="menu-dropdown-item separator" data-action="rent-dealings">Rent Dealings</div>
+          <div class="menu-dropdown-item" data-action="sale-dealings">Sale Dealings</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="records">
+        Records
+        <div class="menu-dropdown" id="menu-records">
+          <div class="menu-dropdown-item" data-action="properties">Properties</div>
+          <div class="menu-dropdown-item" data-action="clients">Clients</div>
+          <div class="menu-dropdown-item" data-action="brokers">Broker Contacts</div>
+          <div class="menu-dropdown-item separator" data-action="employees">Employees</div>
+          <div class="menu-dropdown-item" data-action="financial">Financial</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="reports">
+        Reports
+        <div class="menu-dropdown" id="menu-reports">
+          <div class="menu-dropdown-item" data-action="all-reports">All Reports</div>
+          <div class="menu-dropdown-item" data-action="summary">Summary</div>
+          <div class="menu-dropdown-item separator" data-action="export-reports">Export Reports</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="success">
+        SuccessFactors
+        <div class="menu-dropdown" id="menu-success">
+          <div class="menu-dropdown-item" data-action="employees-sf">Employees</div>
+          <div class="menu-dropdown-item" data-action="recruiting">Recruiting</div>
+          <div class="menu-dropdown-item" data-action="performance">Performance</div>
+          <div class="menu-dropdown-item" data-action="compensation">Compensation</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="workflow">
+        Workflow
+        <div class="menu-dropdown" id="menu-workflow">
+          <div class="menu-dropdown-item" data-action="approvals">Approvals</div>
+          <div class="menu-dropdown-item" data-action="tasks">Tasks</div>
+          <div class="menu-dropdown-item" data-action="audit">Audit Trail</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="tools">
+        Tools
+        <div class="menu-dropdown" id="menu-tools">
+          <div class="menu-dropdown-item" data-action="find">Find</div>
+          <div class="menu-dropdown-item" data-action="match">Match</div>
+          <div class="menu-dropdown-item separator" data-action="backup">Backup</div>
+          <div class="menu-dropdown-item" data-action="settings">Settings</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="help">
+        Help
+        <div class="menu-dropdown" id="menu-help">
+          <div class="menu-dropdown-item" data-action="documentation">Documentation</div>
+          <div class="menu-dropdown-item" data-action="about">About</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-layout">
+      <!-- Mobile Header -->
+      <div class="mobile-header" style="display:none;">
+        <button class="mobile-menu-btn" id="mobile-menu-toggle" title="Open menu">&#9776;</button>
+        <h2>Real Estate CRM</h2>
+      </div>
+
+      <!-- Sidebar Overlay for Mobile -->
+      <div id="sidebar-overlay"></div>
+
+      <aside id="sidebar">
       <div class="sidebar-header brand-card">
         <div class="brand-icon" aria-hidden="true"></div>
         <div>
@@ -41,20 +137,26 @@
         <span id="user-badge"></span>
       </div>
       <nav id="sidebar-nav">
+        <div class="nav-section">QT CRM</div>
+        <a class="nav-item active" data-tab="phase1"><span class="icon icon-phase1"></span> QT_CRM Desk</a>
         <div class="nav-section">Overview</div>
-        <a class="nav-item active" data-tab="dashboard"><span class="icon icon-dashboard"></span> Dashboard</a>
+        <a class="nav-item" data-tab="dashboard"><span class="icon icon-dashboard"></span> Dashboard</a>
         <div class="nav-section">Deal Desk</div>
         <a class="nav-item" data-tab="rent"><span class="icon icon-rent"></span> Rent Dealings</a>
         <a class="nav-item" data-tab="sale"><span class="icon icon-sale"></span> Sale Dealings</a>
         <div class="nav-section">Records</div>
         <a class="nav-item" data-tab="properties"><span class="icon icon-properties"></span> Properties</a>
         <a class="nav-item" data-tab="clients"><span class="icon icon-clients"></span> Clients</a>
+        <a class="nav-item" data-tab="broker_contacts"><span class="icon icon-broker-contacts"></span> Broker Contact List</a>
         <a class="nav-item" data-tab="find"><span class="icon icon-find"></span> Find</a>
         <a class="nav-item" data-tab="followups"><span class="icon icon-followups"></span> Follow-ups</a>
         <div class="nav-section">Operations</div>
         <a class="nav-item" data-tab="financial"><span class="icon icon-financial"></span> Financial</a>
         <a class="nav-item" data-tab="employees"><span class="icon icon-employees"></span> Employees</a>
+        <a class="nav-item" data-tab="successfactors"><span class="icon icon-employees"></span> SuccessFactors</a>
+        <a class="nav-item" data-tab="workflow"><span class="icon icon-approvals"></span> Workflow Engine</a>
         <a class="nav-item" data-tab="reports"><span class="icon icon-reports"></span> Reports</a>
+        <a class="nav-item" data-tab="approvals"><span class="icon icon-approvals"></span> Approvals</a>
         <a class="nav-item" data-tab="audit"><span class="icon icon-audit"></span> Audit</a>
       </nav>
       <div class="sidebar-footer online-card">
@@ -79,39 +181,98 @@
         </div>
       </header>
 
-      <section id="tab-dashboard" class="tab-content active">
-        <div class="workspace-heading">
-          <div>
-            <h1>Business snapshot</h1>
-            <p>Current rent, sale, client, and approval totals.</p>
+      <section id="tab-phase1" class="tab-content active">
+        <div id="phase1-home">
+          <div class="desktop-workspace">
+            <!-- Page Title Row -->
+            <div class="page-title-row">
+              <h1 id="table-title">Rent Requirement</h1>
+              <div class="title-actions">
+                <button class="btn btn-tab" id="btn-home-tab">Home</button>
+                <button class="btn btn-primary" id="btn-add-new">Add New</button>
+                <button class="btn" id="btn-edit">Edit</button>
+                <button class="btn btn-danger" id="btn-delete">Delete</button>
+                <button class="btn btn-warning" id="btn-mark-pending">Mark Pending</button>
+                <button class="btn" id="btn-match">Match Selected</button>
+                <button class="btn" id="btn-import">Import</button>
+                <button class="btn" id="btn-export">Export</button>
+                <button class="btn" id="btn-template">Template</button>
+                <button class="btn" id="btn-recycle">Recycle Bin</button>
+              </div>
+            </div>
+
+            <!-- Selection Info -->
+            <div class="selection-info-row">
+              <span id="selection-count">0 of 0 selected</span>
+            </div>
+
+            <!-- Secondary Toolbar -->
+            <div class="secondary-toolbar">
+              <button class="btn btn-sm" id="btn-select-all">Select All</button>
+              <button class="btn btn-sm" id="btn-clear-selection">Clear Selection</button>
+              <button class="btn btn-sm" id="btn-details">Details</button>
+              <button class="btn btn-sm" id="btn-copy">Copy Selected</button>
+              <button class="btn btn-sm" id="btn-refresh-table">Refresh</button>
+            </div>
+
+            <!-- Tab Buttons for Tables -->
+            <div class="table-tabs">
+              <button class="table-tab active" data-table="rent_requirements">Rent Requirement</button>
+              <button class="table-tab" data-table="rent_availability">Rent Availability</button>
+              <button class="table-tab" data-table="sale_requirements">Sale Requirement</button>
+              <button class="table-tab" data-table="sale_availability">Sale Availability</button>
+            </div>
+
+            <!-- Data Grid -->
+            <div class="data-grid-container">
+              <table id="data-grid" class="data-grid">
+                <thead>
+                  <tr>
+                    <th class="select-col"><input type="checkbox" id="select-all-header"></th>
+                    <th>SERIAL NO.</th>
+                    <th>DATE</th>
+                    <th>NAME</th>
+                    <th>STATUS</th>
+                    <th>CONTACT</th>
+                    <th>PROPERTY REQUIRED/NEEDED</th>
+                    <th>ROOMS</th>
+                    <th>MEASUREMENT</th>
+                  </tr>
+                </thead>
+                <tbody id="data-grid-body">
+                  <!-- Data will be populated here -->
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-        <div id="dashboard-cards" class="card-grid"></div>
+        <div id="phase1-section" class="hidden">
+          <div class="table-actions"></div>
+          <div class="table-container"><table id="phase1-table"><thead></thead><tbody></tbody></table></div>
+        </div>
+        <div id="phase1-form" class="hidden"></div>
+      </section>
+
+      <section id="tab-dashboard" class="tab-content">
+        <div id="dashboard-cards" class="report-dashboard"></div>
+        <div id="ecosystem-panel"></div>
       </section>
 
       <section id="tab-rent" class="tab-content">
-        <div class="deal-command-row">
-          <button class="btn add-btn" type="button" data-table="rent_requirements">New Requirement</button>
-          <button class="btn add-btn" type="button" data-table="rent_availability">New Availability</button>
-          <button class="btn btn-primary module-report-btn" type="button" data-report-kind="rent">Generate Rent Report</button>
-        </div>
         <div class="sub-nav">
           <button class="sub-tab active" data-sub="rent_requirements">Requirements</button>
           <button class="sub-tab" data-sub="rent_availability">Availability</button>
+          <button class="sub-tab" data-sub="rented_properties">Rented</button>
         </div>
         <div class="table-actions"><button class="btn btn-primary add-btn" data-table="rent_requirements">+ Add</button></div>
         <div class="table-container"><table id="rent-table"><thead></thead><tbody></tbody></table></div>
       </section>
 
       <section id="tab-sale" class="tab-content">
-        <div class="deal-command-row">
-          <button class="btn add-btn" type="button" data-table="sale_requirements">New Requirement</button>
-          <button class="btn add-btn" type="button" data-table="sale_availability">New Availability</button>
-          <button class="btn btn-primary module-report-btn" type="button" data-report-kind="sale">Generate Sale Report</button>
-        </div>
         <div class="sub-nav">
           <button class="sub-tab active" data-sub="sale_requirements">Requirements</button>
           <button class="sub-tab" data-sub="sale_availability">Availability</button>
+          <button class="sub-tab" data-sub="sold_properties">Sold</button>
         </div>
         <div class="table-actions"><button class="btn btn-primary add-btn" data-table="sale_requirements">+ Add</button></div>
         <div class="table-container"><table id="sale-table"><thead></thead><tbody></tbody></table></div>
@@ -129,13 +290,40 @@
               <option value="">All</option>
               <option value="rent_requirements">Rent Requirement</option>
               <option value="rent_availability">Rent Availability</option>
+              <option value="rented_properties">Rented Properties</option>
               <option value="sale_requirements">Sale Requirement</option>
               <option value="sale_availability">Sale Availability</option>
+              <option value="sold_properties">Sold Properties</option>
+              <option value="clients">Clients</option>
+              <option value="broker_contacts">Broker Contact List</option>
+              <option value="properties">Properties</option>
+              <option value="employees">Employees</option>
+              <option value="income_transactions">Income</option>
+              <option value="expense_transactions">Expenses</option>
+              <option value="attendance">Attendance</option>
+              <option value="salary_payments">Salary Payments</option>
+              <option value="sf_employees">SF Employees</option>
+              <option value="sf_positions">SF Positions</option>
+              <option value="sf_performance_goals">SF Performance Goals</option>
+              <option value="sf_must_win_battles">SF Must Win Battles</option>
+              <option value="sf_kpis">SF KPIs</option>
+              <option value="sf_learning">SF Learning</option>
+              <option value="sf_recruiting">SF Recruiting</option>
+              <option value="sf_compensation">SF Compensation</option>
+              <option value="sf_onboarding">SF Onboarding</option>
+              <option value="wf_workflows">Workflow Definitions</option>
+              <option value="wf_workflow_steps">Workflow Steps</option>
+              <option value="wf_instances">Workflow Instances</option>
+              <option value="wf_tasks">Workflow Tasks</option>
+              <option value="wf_approvals">Workflow Approvals</option>
+              <option value="wf_notifications">Workflow Notifications</option>
+              <option value="wf_sla_log">Workflow SLA Log</option>
+              <option value="wf_audit_log">Workflow Audit Log</option>
             </select>
           </div>
           <button class="btn btn-primary" id="find-button">Find</button>
         </div>
-        <div id="find-status" class="muted-line">Search rent and sale records visible to your user role.</div>
+        <div id="find-status" class="muted-line">Search all readable CRM tables and columns.</div>
         <div class="table-container"><table id="find-table"><thead></thead><tbody></tbody></table></div>
       </section>
 
@@ -170,9 +358,45 @@
         <div class="table-container"><table id="employee-table"><thead></thead><tbody></tbody></table></div>
       </section>
 
+      <section id="tab-successfactors" class="tab-content">
+        <div class="sub-nav">
+          <button class="sub-tab active" data-sub="sf_employees">Employee Central</button>
+          <button class="sub-tab" data-sub="sf_recruiting">Recruiting</button>
+          <button class="sub-tab" data-sub="sf_performance_goals">Performance & Goals</button>
+          <button class="sub-tab" data-sub="sf_must_win_battles">Must Win Battles</button>
+          <button class="sub-tab" data-sub="sf_kpis">KPIs</button>
+          <button class="sub-tab" data-sub="sf_learning">Learning</button>
+          <button class="sub-tab" data-sub="sf_compensation">Compensation</button>
+          <button class="sub-tab" data-sub="sf_onboarding">Onboarding</button>
+          <button class="sub-tab" data-sub="sf_positions">Positions</button>
+        </div>
+        <div class="table-actions"><button class="btn btn-primary add-btn" data-table="sf_employees">+ Add</button></div>
+        <div class="table-container"><table id="successfactors-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="tab-workflow" class="tab-content">
+        <div class="sub-nav">
+          <button class="sub-tab active" data-sub="wf_workflows">Workflow Definitions</button>
+          <button class="sub-tab" data-sub="wf_workflow_steps">Workflow Steps</button>
+          <button class="sub-tab" data-sub="wf_instances">Running Instances</button>
+          <button class="sub-tab" data-sub="wf_tasks">Tasks</button>
+          <button class="sub-tab" data-sub="wf_approvals">Approvals</button>
+          <button class="sub-tab" data-sub="wf_notifications">Notifications</button>
+          <button class="sub-tab" data-sub="wf_sla_log">SLA Log</button>
+          <button class="sub-tab" data-sub="wf_audit_log">Audit Trail</button>
+        </div>
+        <div class="table-actions"><button class="btn btn-primary add-btn" data-table="wf_workflows">+ Add</button></div>
+        <div class="table-container"><table id="workflow-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
       <section id="tab-clients" class="tab-content">
         <div class="table-actions"><button class="btn btn-primary add-btn" data-table="clients">+ Add</button></div>
         <div class="table-container"><table id="clients-table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="tab-broker_contacts" class="tab-content">
+        <div class="table-actions"><button class="btn btn-primary add-btn" data-table="broker_contacts">+ Add</button></div>
+        <div class="table-container"><table id="broker-contacts-table"><thead></thead><tbody></tbody></table></div>
       </section>
 
       <section id="tab-properties" class="tab-content">
@@ -197,11 +421,27 @@
         </div>
         <div class="table-container"><table id="audit-table"><thead></thead><tbody></tbody></table></div>
       </section>
+
+      <section id="tab-approvals" class="tab-content">
+        <div class="workspace-heading">
+          <div>
+            <h1>Pending Approvals</h1>
+            <p>Review staff and manager edit/delete requests.</p>
+          </div>
+        </div>
+        <div class="table-actions approvals-actions">
+          <button id="btn-load-approvals" class="btn" type="button">Refresh</button>
+        </div>
+        <div class="table-container"><table id="approvals-table"><thead></thead><tbody></tbody></table></div>
+      </section>
     </main>
   </div>
-</div>
+    </div>
 
-<div id="modal-overlay" class="hidden">
+  <!-- Sidebar Toggle Button -->
+  <button id="sidebar-toggle" title="Toggle Sidebar">&#9664;</button>
+
+  <div id="modal-overlay" class="hidden">
   <div id="modal" class="glass-card">
     <div id="modal-header"><h3 id="modal-title">Form</h3><button id="modal-close">&times;</button></div>
     <div id="modal-body"></div>
@@ -209,6 +449,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2026051804"></script>
+  <script src="app.js?v=2026060903"></script>
 </body>
 </html>

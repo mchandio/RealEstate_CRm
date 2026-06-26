@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Boolean, ForeignKey, TIMESTAMP
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Boolean, ForeignKey, TIMESTAMP, UniqueConstraint
 from sqlalchemy.sql import func
 from backend.database import Base
 
@@ -44,10 +44,13 @@ class RentRequirement(Base):
     client_name = Column(String(200))
     client_status = Column(String(50), default="Client")
     broker = Column(String(200))
+    contact_person = Column(String(200))
+    contact_phone = Column(String(100))
     contact = Column(String(100))
     property_requires = Column(String(200))
     size = Column(String(100))
     measurement = Column(String(100))
+    measurement_unit = Column(String(30))
     budget = Column(Float, default=0)
     floor = Column(String(50))
     location = Column(String(200))
@@ -57,6 +60,8 @@ class RentRequirement(Base):
     client_broker = Column(String(200))
     bachelor_family = Column(String(50))
     remarks = Column(Text)
+    persons = Column(String(50))
+    building_name = Column(String(200))
     workflow_stage = Column(String(50), default="Lead")
     priority = Column(String(20), default="Medium")
     next_follow_up = Column(String(20))
@@ -72,6 +77,11 @@ class RentRequirement(Base):
     approved_at = Column(DateTime, nullable=True)
     created_by = Column(String(100))
     created_at = Column(DateTime, server_default=func.now())
+    last_edited_by = Column(String(100))
+    last_edited_at = Column(String(30))
+    is_deleted = Column(Boolean, default=False)
+    deleted_by = Column(String(100))
+    deleted_at = Column(String(30))
 
 
 class RentAvailability(Base):
@@ -79,10 +89,13 @@ class RentAvailability(Base):
     id = Column(Integer, primary_key=True, index=True)
     date = Column(String(20))
     owner_name = Column(String(200))
+    owner_phone = Column(String(100))
+    contact_phone = Column(String(100))
     contact = Column(String(100))
     property_availability = Column(String(200))
     size = Column(String(100))
     measurement = Column(String(100))
+    measurement_unit = Column(String(30))
     monthly_rent = Column(Float, default=0)
     floor = Column(String(50))
     location = Column(String(200))
@@ -100,6 +113,8 @@ class RentAvailability(Base):
     client_broker = Column(String(200))
     bachelor_family = Column(String(50))
     remarks = Column(Text)
+    persons = Column(String(50))
+    building_name = Column(String(200))
     status = Column(String(50), default="Available")
     workflow_stage = Column(String(50), default="Lead")
     priority = Column(String(20), default="Medium")
@@ -116,6 +131,11 @@ class RentAvailability(Base):
     approved_at = Column(DateTime, nullable=True)
     created_by = Column(String(100))
     created_at = Column(DateTime, server_default=func.now())
+    last_edited_by = Column(String(100))
+    last_edited_at = Column(String(30))
+    is_deleted = Column(Boolean, default=False)
+    deleted_by = Column(String(100))
+    deleted_at = Column(String(30))
 
 
 class SaleRequirement(Base):
@@ -125,11 +145,15 @@ class SaleRequirement(Base):
     client_name = Column(String(200))
     client_status = Column(String(50), default="Client")
     broker = Column(String(200))
+    contact_person = Column(String(200))
+    contact_phone = Column(String(100))
     contact = Column(String(100))
     property_requires = Column(String(200))
     size = Column(String(100))
     measurement = Column(String(100))
+    measurement_unit = Column(String(30))
     budget = Column(Float, default=0)
+    maintenance_charge = Column(Float, default=0)
     floor = Column(String(50))
     location = Column(String(200))
     option1 = Column(String(200))
@@ -138,6 +162,8 @@ class SaleRequirement(Base):
     client_broker = Column(String(200))
     bachelor_family = Column(String(50))
     remarks = Column(Text)
+    persons = Column(String(50))
+    building_name = Column(String(200))
     workflow_stage = Column(String(50), default="Lead")
     priority = Column(String(20), default="Medium")
     next_follow_up = Column(String(20))
@@ -153,6 +179,11 @@ class SaleRequirement(Base):
     approved_at = Column(DateTime, nullable=True)
     created_by = Column(String(100))
     created_at = Column(DateTime, server_default=func.now())
+    last_edited_by = Column(String(100))
+    last_edited_at = Column(String(30))
+    is_deleted = Column(Boolean, default=False)
+    deleted_by = Column(String(100))
+    deleted_at = Column(String(30))
 
 
 class SaleAvailability(Base):
@@ -160,11 +191,15 @@ class SaleAvailability(Base):
     id = Column(Integer, primary_key=True, index=True)
     date = Column(String(20))
     owner_name = Column(String(200))
+    owner_phone = Column(String(100))
+    contact_phone = Column(String(100))
     contact = Column(String(100))
     property_availability = Column(String(200))
     size = Column(String(100))
     measurement = Column(String(100))
+    measurement_unit = Column(String(30))
     demand = Column(Float, default=0)
+    maintenance_charge = Column(Float, default=0)
     floor = Column(String(50))
     location = Column(String(200))
     bedrooms = Column(String(50))
@@ -181,6 +216,8 @@ class SaleAvailability(Base):
     client_broker = Column(String(200))
     bachelor_family = Column(String(50))
     remarks = Column(Text)
+    persons = Column(String(50))
+    building_name = Column(String(200))
     status = Column(String(50), default="Available")
     workflow_stage = Column(String(50), default="Lead")
     priority = Column(String(20), default="Medium")
@@ -197,6 +234,128 @@ class SaleAvailability(Base):
     approved_at = Column(DateTime, nullable=True)
     created_by = Column(String(100))
     created_at = Column(DateTime, server_default=func.now())
+    last_edited_by = Column(String(100))
+    last_edited_at = Column(String(30))
+    is_deleted = Column(Boolean, default=False)
+    deleted_by = Column(String(100))
+    deleted_at = Column(String(30))
+
+
+class RentedProperty(Base):
+    __tablename__ = "rented_properties"
+    __table_args__ = (UniqueConstraint("source_table", "source_id", name="uq_rented_property_source"),)
+    id = Column(Integer, primary_key=True, index=True)
+    source_table = Column(String(100), default="rent_availability", index=True)
+    source_id = Column(Integer, index=True)
+    deal_type = Column(String(20), default="rent")
+    closed_status = Column(String(50), default="Rented", index=True)
+    closed_at = Column(String(30), index=True)
+    archived_at = Column(String(30), server_default=func.now(), index=True)
+    archived_by = Column(String(100))
+    date = Column(String(20))
+    owner_name = Column(String(200))
+    owner_phone = Column(String(100))
+    contact_phone = Column(String(100))
+    contact = Column(String(100))
+    property_availability = Column(String(200))
+    size = Column(String(100))
+    measurement = Column(String(100))
+    measurement_unit = Column(String(30))
+    monthly_rent = Column(Float, default=0)
+    demand = Column(Float, default=0)
+    deposit = Column(Float, default=0)
+    maintenance_charge = Column(Float, default=0)
+    floor = Column(String(50))
+    location = Column(String(200))
+    bedrooms = Column(String(50))
+    bathrooms = Column(String(50))
+    furnishing = Column(String(100))
+    parking = Column(String(100))
+    nearby_landmarks = Column(Text)
+    area_notes = Column(Text)
+    verification_status = Column(String(50))
+    photo_paths = Column(Text)
+    facilities = Column(Text)
+    client_broker = Column(String(200))
+    bachelor_family = Column(String(50))
+    remarks = Column(Text)
+    persons = Column(String(50))
+    building_name = Column(String(200))
+    workflow_stage = Column(String(50), default="Deal Done")
+    priority = Column(String(20), default="Medium")
+    assigned_to = Column(String(100))
+    deal_probability = Column(Float, default=100.0)
+    expected_close_value = Column(Float, default=0)
+    approval_status = Column(String(50))
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+    original_payload = Column(Text)
+
+
+class SoldProperty(Base):
+    __tablename__ = "sold_properties"
+    __table_args__ = (UniqueConstraint("source_table", "source_id", name="uq_sold_property_source"),)
+    id = Column(Integer, primary_key=True, index=True)
+    source_table = Column(String(100), default="sale_availability", index=True)
+    source_id = Column(Integer, index=True)
+    deal_type = Column(String(20), default="sale")
+    closed_status = Column(String(50), default="Sold", index=True)
+    closed_at = Column(String(30), index=True)
+    archived_at = Column(String(30), server_default=func.now(), index=True)
+    archived_by = Column(String(100))
+    date = Column(String(20))
+    owner_name = Column(String(200))
+    owner_phone = Column(String(100))
+    contact_phone = Column(String(100))
+    contact = Column(String(100))
+    property_availability = Column(String(200))
+    size = Column(String(100))
+    measurement = Column(String(100))
+    measurement_unit = Column(String(30))
+    monthly_rent = Column(Float, default=0)
+    demand = Column(Float, default=0)
+    deposit = Column(Float, default=0)
+    maintenance_charge = Column(Float, default=0)
+    floor = Column(String(50))
+    location = Column(String(200))
+    bedrooms = Column(String(50))
+    bathrooms = Column(String(50))
+    furnishing = Column(String(100))
+    parking = Column(String(100))
+    nearby_landmarks = Column(Text)
+    area_notes = Column(Text)
+    verification_status = Column(String(50))
+    photo_paths = Column(Text)
+    facilities = Column(Text)
+    client_broker = Column(String(200))
+    bachelor_family = Column(String(50))
+    remarks = Column(Text)
+    persons = Column(String(50))
+    building_name = Column(String(200))
+    workflow_stage = Column(String(50), default="Deal Done")
+    priority = Column(String(20), default="Medium")
+    assigned_to = Column(String(100))
+    deal_probability = Column(Float, default=100.0)
+    expected_close_value = Column(Float, default=0)
+    approval_status = Column(String(50))
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+    original_payload = Column(Text)
+
+
+class PendingApproval(Base):
+    __tablename__ = "pending_approvals"
+    id = Column(Integer, primary_key=True, index=True)
+    action = Column(String(50), nullable=False)
+    table_name = Column(String(100), nullable=False, index=True)
+    record_id = Column(Integer, nullable=True, index=True)
+    payload = Column(Text)
+    requested_by = Column(String(100))
+    requested_at = Column(String(30))
+    status = Column(String(50), default="Pending", index=True)
+    reviewed_by = Column(String(100))
+    reviewed_at = Column(String(30))
+    review_comment = Column(Text)
 
 
 class IncomeTransaction(Base):
@@ -260,6 +419,18 @@ class Client(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class BrokerContact(Base):
+    __tablename__ = "broker_contacts"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200))
+    contact = Column(String(100))
+    area = Column(String(200), index=True)
+    office_address = Column(Text)
+    home_address = Column(Text)
+    remarks = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class Property(Base):
     __tablename__ = "properties"
     id = Column(Integer, primary_key=True, index=True)
@@ -295,7 +466,17 @@ class Attendance(Base):
     date = Column(String(20))
     check_in = Column(String(20))
     check_out = Column(String(20))
+    shift_name = Column(String(100), default="Office")
+    scheduled_start = Column(String(20), default="09:30")
+    scheduled_end = Column(String(20), default="18:00")
     status = Column(String(50), default="Present")
+    leave_type = Column(String(50))
+    worked_minutes = Column(Integer, default=0)
+    late_minutes = Column(Integer, default=0)
+    early_leave_minutes = Column(Integer, default=0)
+    overtime_minutes = Column(Integer, default=0)
+    approved_by = Column(String(100))
+    last_edited_at = Column(String(30))
     notes = Column(Text)
 
 
@@ -313,6 +494,302 @@ class SalaryPayment(Base):
     payment_method = Column(String(50))
     notes = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class SFEmployee(Base):
+    __tablename__ = "sf_employees"
+    id = Column(Integer, primary_key=True, index=True)
+    sf_employee_id = Column(String(100), unique=True, index=True)
+    full_name = Column(String(200), nullable=False, index=True)
+    email = Column(String(200))
+    department = Column(String(100), index=True)
+    job_title = Column(String(150))
+    manager_name = Column(String(200))
+    hire_date = Column(String(20), index=True)
+    employment_status = Column(String(50), default="Active", index=True)
+    location = Column(String(200))
+    cost_center = Column(String(100))
+    notes = Column(Text)
+    synced_at = Column(String(30))
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+
+
+class SFPosition(Base):
+    __tablename__ = "sf_positions"
+    id = Column(Integer, primary_key=True, index=True)
+    position_code = Column(String(100), unique=True, index=True)
+    position_title = Column(String(200), nullable=False, index=True)
+    department = Column(String(100), index=True)
+    location = Column(String(200))
+    headcount_max = Column(Integer, default=1)
+    headcount_current = Column(Integer, default=0)
+    status = Column(String(50), default="Open", index=True)
+    reports_to = Column(String(200))
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+
+
+class SFPerformanceGoal(Base):
+    __tablename__ = "sf_performance_goals"
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("sf_employees.id"), nullable=True, index=True)
+    employee_name = Column(String(200), index=True)
+    goal_title = Column(String(200), nullable=False, index=True)
+    goal_description = Column(Text)
+    due_date = Column(String(20), index=True)
+    status = Column(String(50), default="In Progress", index=True)
+    progress_pct = Column(Float, default=0)
+    rating = Column(String(50))
+    review_period = Column(String(50))
+    notes = Column(Text)
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+
+
+class SFMustWinBattle(Base):
+    __tablename__ = "sf_must_win_battles"
+    id = Column(Integer, primary_key=True, index=True)
+    battle_code = Column(String(100), unique=True, index=True)
+    battle_title = Column(String(200), nullable=False, index=True)
+    owner_name = Column(String(200), index=True)
+    department = Column(String(100), index=True)
+    objective = Column(Text)
+    start_date = Column(String(20), index=True)
+    end_date = Column(String(20), index=True)
+    priority = Column(String(50), default="High", index=True)
+    status = Column(String(50), default="Active", index=True)
+    target_value = Column(Float, default=0)
+    current_value = Column(Float, default=0)
+    progress_pct = Column(Float, default=0)
+    business_impact = Column(String(200))
+    risks = Column(Text)
+    notes = Column(Text)
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+
+
+class SFKPI(Base):
+    __tablename__ = "sf_kpis"
+    id = Column(Integer, primary_key=True, index=True)
+    kpi_code = Column(String(100), unique=True, index=True)
+    kpi_name = Column(String(200), nullable=False, index=True)
+    employee_name = Column(String(200), index=True)
+    department = Column(String(100), index=True)
+    category = Column(String(100), index=True)
+    period = Column(String(50), index=True)
+    start_date = Column(String(20), index=True)
+    end_date = Column(String(20), index=True)
+    target_value = Column(Float, default=0)
+    actual_value = Column(Float, default=0)
+    unit = Column(String(50))
+    weight_pct = Column(Float, default=0)
+    achievement_pct = Column(Float, default=0)
+    status = Column(String(50), default="On Track", index=True)
+    owner_name = Column(String(200))
+    review_date = Column(String(20), index=True)
+    notes = Column(Text)
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+
+
+class SFLearning(Base):
+    __tablename__ = "sf_learning"
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("sf_employees.id"), nullable=True, index=True)
+    employee_name = Column(String(200), index=True)
+    course_title = Column(String(200), nullable=False, index=True)
+    course_code = Column(String(100), index=True)
+    category = Column(String(100), index=True)
+    assigned_date = Column(String(20), index=True)
+    due_date = Column(String(20), index=True)
+    completion_date = Column(String(20), index=True)
+    status = Column(String(50), default="Assigned", index=True)
+    score = Column(Float)
+    instructor = Column(String(200))
+    notes = Column(Text)
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+
+
+class SFRecruiting(Base):
+    __tablename__ = "sf_recruiting"
+    id = Column(Integer, primary_key=True, index=True)
+    job_requisition_id = Column(String(100), index=True)
+    job_title = Column(String(200), nullable=False, index=True)
+    department = Column(String(100), index=True)
+    location = Column(String(200))
+    hiring_manager = Column(String(200))
+    recruiter = Column(String(200))
+    open_date = Column(String(20), index=True)
+    close_date = Column(String(20), index=True)
+    status = Column(String(50), default="Open", index=True)
+    applications_count = Column(Integer, default=0)
+    shortlisted_count = Column(Integer, default=0)
+    notes = Column(Text)
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+
+
+class SFCompensation(Base):
+    __tablename__ = "sf_compensation"
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("sf_employees.id"), nullable=True, index=True)
+    employee_name = Column(String(200), index=True)
+    base_salary = Column(Float, default=0)
+    bonus = Column(Float, default=0)
+    allowances = Column(Float, default=0)
+    total_compensation = Column(Float, default=0)
+    currency = Column(String(20), default="PKR")
+    effective_date = Column(String(20), index=True)
+    review_cycle = Column(String(100))
+    approved_by = Column(String(200))
+    status = Column(String(50), default="Active", index=True)
+    notes = Column(Text)
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+
+
+class SFOnboarding(Base):
+    __tablename__ = "sf_onboarding"
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("sf_employees.id"), nullable=True, index=True)
+    employee_name = Column(String(200), index=True)
+    task_title = Column(String(200), nullable=False, index=True)
+    task_category = Column(String(100))
+    assigned_to = Column(String(200), index=True)
+    due_date = Column(String(20), index=True)
+    completion_date = Column(String(20), index=True)
+    status = Column(String(50), default="Pending", index=True)
+    priority = Column(String(50), default="Medium", index=True)
+    notes = Column(Text)
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+
+
+class WFWorkflow(Base):
+    __tablename__ = "wf_workflows"
+    id = Column(Integer, primary_key=True, index=True)
+    workflow_name = Column(String(200), nullable=False, index=True)
+    workflow_type = Column(String(100), index=True)
+    description = Column(Text)
+    trigger_event = Column(String(150))
+    status = Column(String(50), default="Active", index=True)
+    version = Column(Integer, default=1)
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+
+
+class WFWorkflowStep(Base):
+    __tablename__ = "wf_workflow_steps"
+    id = Column(Integer, primary_key=True, index=True)
+    workflow_id = Column(Integer, ForeignKey("wf_workflows.id"), nullable=True, index=True)
+    step_order = Column(Integer, default=1)
+    step_name = Column(String(200), nullable=False, index=True)
+    step_type = Column(String(100), index=True)
+    assignee_role = Column(String(100))
+    assignee_name = Column(String(200))
+    sla_hours = Column(Integer, default=24)
+    action_on_approve = Column(String(150))
+    action_on_reject = Column(String(150))
+    is_conditional = Column(Integer, default=0)
+    condition_field = Column(String(150))
+    condition_value = Column(String(200))
+    created_by = Column(String(100))
+    created_at = Column(String(30))
+
+
+class WFInstance(Base):
+    __tablename__ = "wf_instances"
+    id = Column(Integer, primary_key=True, index=True)
+    workflow_id = Column(Integer, ForeignKey("wf_workflows.id"), nullable=True, index=True)
+    workflow_name = Column(String(200), index=True)
+    reference_table = Column(String(100), index=True)
+    reference_id = Column(Integer, index=True)
+    initiated_by = Column(String(100))
+    initiated_at = Column(String(30), index=True)
+    current_step = Column(Integer, default=1)
+    current_assignee = Column(String(200), index=True)
+    status = Column(String(50), default="Running", index=True)
+    due_at = Column(String(30), index=True)
+    completed_at = Column(String(30), index=True)
+    priority = Column(String(50), default="Normal", index=True)
+    notes = Column(Text)
+
+
+class WFTask(Base):
+    __tablename__ = "wf_tasks"
+    id = Column(Integer, primary_key=True, index=True)
+    instance_id = Column(Integer, ForeignKey("wf_instances.id"), nullable=True, index=True)
+    workflow_name = Column(String(200), index=True)
+    step_name = Column(String(200), index=True)
+    assigned_to = Column(String(200), index=True)
+    assigned_at = Column(String(30), index=True)
+    due_at = Column(String(30), index=True)
+    completed_at = Column(String(30), index=True)
+    action_taken = Column(String(100))
+    comments = Column(Text)
+    status = Column(String(50), default="Pending", index=True)
+    priority = Column(String(50), default="Normal", index=True)
+    reference_table = Column(String(100), index=True)
+    reference_id = Column(Integer, index=True)
+
+
+class WFApproval(Base):
+    __tablename__ = "wf_approvals"
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("wf_tasks.id"), nullable=True, index=True)
+    workflow_name = Column(String(200), index=True)
+    approval_type = Column(String(100))
+    requested_by = Column(String(100), index=True)
+    requested_at = Column(String(30), index=True)
+    reviewed_by = Column(String(100))
+    reviewed_at = Column(String(30), index=True)
+    decision = Column(String(100))
+    comments = Column(Text)
+    reference_table = Column(String(100), index=True)
+    reference_id = Column(Integer, index=True)
+    status = Column(String(50), default="Pending", index=True)
+
+
+class WFNotification(Base):
+    __tablename__ = "wf_notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    recipient = Column(String(200), nullable=False, index=True)
+    subject = Column(String(250))
+    body = Column(Text)
+    channel = Column(String(50), default="In-App")
+    sent_at = Column(String(30), index=True)
+    read_at = Column(String(30), index=True)
+    status = Column(String(50), default="Unread", index=True)
+    reference_table = Column(String(100), index=True)
+    reference_id = Column(Integer, index=True)
+    created_at = Column(String(30))
+
+
+class WFSlaLog(Base):
+    __tablename__ = "wf_sla_log"
+    id = Column(Integer, primary_key=True, index=True)
+    instance_id = Column(Integer, ForeignKey("wf_instances.id"), nullable=True, index=True)
+    task_id = Column(Integer, ForeignKey("wf_tasks.id"), nullable=True, index=True)
+    sla_target_hours = Column(Integer)
+    actual_hours = Column(Float)
+    breached = Column(Integer, default=0, index=True)
+    logged_at = Column(String(30), index=True)
+
+
+class WFAuditLog(Base):
+    __tablename__ = "wf_audit_log"
+    id = Column(Integer, primary_key=True, index=True)
+    action = Column(String(150), nullable=False, index=True)
+    performed_by = Column(String(100), index=True)
+    performed_at = Column(String(30), index=True)
+    reference_table = Column(String(100), index=True)
+    reference_id = Column(Integer, index=True)
+    old_value = Column(Text)
+    new_value = Column(Text)
+    ip_address = Column(String(100))
+    session_id = Column(String(100))
 
 
 class AppSetting(Base):

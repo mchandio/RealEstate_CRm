@@ -18,6 +18,9 @@ class SQLiteRepository:
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA busy_timeout=30000")
         conn.execute("PRAGMA foreign_keys=ON")
+        conn.execute("PRAGMA wal_autocheckpoint=1000")
+        conn.execute("PRAGMA synchronous=FULL")
+        conn.execute("PRAGMA cache_size=5000")
         try:
             conn.execute("PRAGMA journal_mode=WAL")
         except sqlite3.DatabaseError:

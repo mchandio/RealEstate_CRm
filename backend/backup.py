@@ -11,6 +11,7 @@ from pathlib import Path
 from backend.config import CRM_DB_PATH, DATABASE_URL
 from backend.database import SessionLocal
 from backend.models import AppSetting
+from crm_core.ecosystem import RECOMMENDED_MAX_BACKUPS
 from crm_core.paths import OUTPUT_DIR
 
 
@@ -40,9 +41,20 @@ def run_database_backup(reason: str = "manual") -> Path:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     destination = BACKUP_DIR / f"{reason}_backup_{stamp}.db"
     source = Path(CRM_DB_PATH)
-    with sqlite3.connect(source) as src, sqlite3.connect(destination) as dest:
-        src.backup(dest)
+    with sqlite3.connect(source, timeout=30) as src, sqlite3.connect(destination) as dest:
+        src.execute("PRAGMA busy_timeout=30000")
+        src.backup(dest, pages=100, sleep=0.001)
+    trim_backup_folder()
     return destination
+
+
+def trim_backup_folder(max_backups: int = RECOMMENDED_MAX_BACKUPS) -> None:
+    backups = sorted(BACKUP_DIR.glob("*.db"), key=lambda path: path.stat().st_mtime, reverse=True)
+    for old_backup in backups[max_backups:]:
+        try:
+            old_backup.unlink()
+        except OSError:
+            pass
 
 
 def daily_backup_if_due() -> Path | None:

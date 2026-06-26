@@ -52,6 +52,7 @@ class ApprovalAction(BaseModel):
 class WorkflowAction(BaseModel):
     stage: str
     priority: str = "Medium"
+    status: Optional[str] = None
     next_follow_up: Optional[str] = None
     assigned_to: Optional[str] = None
     deal_probability: Optional[float] = None

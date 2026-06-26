@@ -6,6 +6,89 @@ import re
 from typing import Any
 
 
+def prefilter_candidates(
+    target: dict[str, Any],
+    candidates: list[dict[str, Any]],
+    target_table: str,
+    candidate_table: str,
+    price_tolerance: float = 0.30,
+    max_candidates: int = 200,
+) -> list[dict[str, Any]]:
+    """Pre-filter candidates by price range and location to reduce matching workload.
+    
+    Args:
+        target: The source record to match against
+        candidates: List of potential candidate records
+        target_table: Table name of the target record
+        candidate_table: Table name of the candidates
+        price_tolerance: Price matching tolerance (default 30%)
+        max_candidates: Maximum candidates to return after filtering
+    
+    Returns:
+        Filtered list of candidates most likely to match
+    """
+    if not candidates:
+        return []
+    
+    # Get target price
+    target_amount = amount_for_table(target, target_table)
+    target_location = normalize_text(target.get("location"))
+    target_tokens = tokens(target_location)
+    
+    scored_candidates = []
+    
+    for candidate in candidates:
+        candidate_row = record_to_dict(candidate)
+        
+        # Skip inactive records
+        if not is_open_candidate(candidate_row, candidate_table):
+            continue
+        
+        score = 0.0
+        
+        # Price proximity score (0-50)
+        candidate_amount = amount_for_table(candidate_row, candidate_table)
+        if target_amount and candidate_amount:
+            price_ratio = min(target_amount, candidate_amount) / max(target_amount, candidate_amount)
+            if price_ratio >= (1 - price_tolerance):
+                score += 50 * price_ratio
+        elif not target_amount or not candidate_amount:
+            # If either has no price, give partial credit
+            score += 25
+        
+        # Location proximity score (0-40)
+        candidate_location = normalize_text(candidate_row.get("location"))
+        if target_location and candidate_location:
+            if target_location == candidate_location:
+                score += 40
+            elif target_location in candidate_location or candidate_location in target_location:
+                score += 30
+            else:
+                # Token overlap
+                candidate_tokens = tokens(candidate_location)
+                if candidate_tokens and target_tokens:
+                    overlap = len(target_tokens & candidate_tokens)
+                    if overlap:
+                        score += min(20, overlap * 10)
+        
+        # Property type similarity (0-10)
+        target_type = property_text(target, target_table)
+        candidate_type = property_text(candidate_row, candidate_table)
+        if target_type and candidate_type:
+            if normalize_text(target_type) == normalize_text(candidate_type):
+                score += 10
+            else:
+                type_overlap = tokens(target_type) & tokens(candidate_type)
+                if type_overlap:
+                    score += min(5, len(type_overlap) * 2)
+        
+        scored_candidates.append((score, candidate_row))
+    
+    # Sort by pre-filter score and take top max_candidates
+    scored_candidates.sort(key=lambda x: x[0], reverse=True)
+    return [c[1] for c in scored_candidates[:max_candidates]]
+
+
 STOP_WORDS = {
     "and", "or", "the", "for", "with", "from", "this", "that", "have",
     "has", "need", "needs", "want", "wants", "required", "requirement",
@@ -198,11 +281,36 @@ def best_matches(
     *,
     limit: int = 12,
     minimum_score: float = 15.0,
+    use_prefilter: bool = True,
 ) -> list[dict[str, Any]]:
+    """Find best matching candidates with optional pre-filtering for performance.
+    
+    Args:
+        target: The source record to match against
+        candidates: List of potential candidate records
+        target_table: Table name of the target record
+        candidate_table: Table name of the candidates
+        limit: Maximum number of matches to return
+        minimum_score: Minimum score threshold (0-100)
+        use_prefilter: Whether to use pre-filtering for large candidate sets
+    
+    Returns:
+        List of matching candidates sorted by score
+    """
+    # Convert target to dict once
+    target_row = record_to_dict(target)
+    
+    # Pre-filter candidates if enabled and we have many candidates
+    candidate_list = candidates
+    if use_prefilter and len(candidates) > 50:
+        candidate_list = prefilter_candidates(
+            target_row, candidates, target_table, candidate_table
+        )
+    
     rows: list[dict[str, Any]] = []
-    for candidate in candidates:
+    for candidate in candidate_list:
         row = record_to_dict(candidate)
-        score, reasons = smart_match_score(target, row, target_table, candidate_table)
+        score, reasons = smart_match_score(target_row, row, target_table, candidate_table)
         if score < minimum_score:
             continue
         rows.append({

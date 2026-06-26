@@ -17,7 +17,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from crm_core.matching import smart_match_score as shared_smart_match_score
+from crm_core.matching import (
+    smart_match_score as shared_smart_match_score,
+    prefilter_candidates,
+)
+from crm_core.constants import (
+    DEAL_STAGES,
+    PRIORITY_SCORE,
+    STAGE_SCORE,
+    STAGE_PROBABILITY,
+)
 
 try:
     import numpy as np
@@ -45,17 +54,6 @@ STOP_WORDS = {
     "flat", "house", "home", "plot", "apartment", "villa", "room", "bed",
     "beds", "bath", "baths", "sqft", "sq", "ft", "yard", "yards", "rs",
     "near", "area", "location", "client", "owner", "family", "bachelor",
-}
-
-DEAL_STAGES = ["Lead", "Contacted", "Visit Scheduled", "Negotiation", "Closed", "Deal Done"]
-PRIORITY_SCORE = {"Urgent": 1.0, "High": 0.82, "Medium": 0.55, "Low": 0.3}
-STAGE_SCORE = {
-    "Lead": 0.25,
-    "Contacted": 0.42,
-    "Visit Scheduled": 0.62,
-    "Negotiation": 0.82,
-    "Closed": 0.9,
-    "Deal Done": 1.0,
 }
 
 
@@ -264,9 +262,15 @@ class IntelligenceService:
         ]
         matches = []
         for left, right in pairs:
+            right_candidates = frames[right].to_dict("records")
             for row in frames[left].to_dict("records")[:80]:
+                # Pre-filter candidates for performance
+                filtered_candidates = prefilter_candidates(
+                    row, right_candidates, left, right, max_candidates=100
+                ) if len(right_candidates) > 50 else right_candidates
+                
                 best = None
-                for candidate in frames[right].to_dict("records")[:160]:
+                for candidate in filtered_candidates[:80]:
                     score, reasons = self._match_score(row, candidate, left, right)
                     if best is None or score > best[0]:
                         best = (score, candidate, reasons)

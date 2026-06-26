@@ -17,16 +17,19 @@ ROLE_PERMISSIONS = {
     'Super Admin': [
         'dashboard', 'rent', 'sale', 'properties', 'clients', 'financial',
         'employees', 'reports', 'settings', 'users', 'backup', 'delete',
+        'successfactors', 'sf_view', 'workflow', 'wf_view', 'wf_admin',
     ],
     'Admin': [
         'dashboard', 'rent', 'sale', 'properties', 'clients', 'financial',
         'employees', 'reports', 'settings', 'users', 'backup', 'delete',
+        'successfactors', 'sf_view', 'workflow', 'wf_view', 'wf_admin',
     ],
     'Manager': [
         'dashboard', 'rent', 'sale', 'properties', 'clients',
-        'financial_view', 'employees', 'reports',
+        'financial', 'employees', 'reports',
+        'successfactors', 'sf_view', 'workflow', 'wf_view',
     ],
-    'Staff': ['rent', 'sale'],
+    'Staff': ['dashboard', 'rent', 'sale', 'reports', 'wf_view'],
     'Viewer': ['dashboard', 'rent_view', 'sale_view', 'reports'],
 }
 

@@ -1,4 +1,15 @@
-"""Full PySide6 CRM application backed by the existing SQLite database.
+"""Full PySide6  Thiss Crem fhf S ASDFGFD ASAS FOAS ASF SAFHADV AD JSFDZFG FSDADD D 
+FDSFXFJHSDSA FDD FAWDS VHCDBXCZ DS  SFDAFS FWSGFLR  W ERGD SHCSS   w asdsfw F
+ADFSAFDJDVBV AERFD FLTH SF ERSGAD  URRTSKKFSRFA 
+STGHSA FGRSA V SRJ ETAEFG>,,B  FWEFJ  
+SDFHD FAADG  
+ HFF JJR FVCRSTGSDA AA GJADFURFFUAS B 8EFUS V FSADNCMSMASREIDA 
+ FASSFJHFDFHSAHFHDA SGLUEAF FF22W7R77W48EEFf#$%^#$ &&U57 f
+ RUYUGHTYASYSGY A
+ GESRUEUU SA F1177499SFFF##$FF1 
+ SSFDHFHSDAAH  A
+  SFDDF4YS4YS 3777$$ hfd asefhdfg f 9fjaff&&f$$ fsjff  ____ srew waufjsf 
+  sfdgfhdhfashs  <<<>>: $ FCRM application backed by the existing SQLite database.
 
 This is the Qt replacement for the Tkinter UI in professional_crm.py. It keeps
 the same database tables and business workflows while moving the desktop

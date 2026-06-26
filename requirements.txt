@@ -17,6 +17,7 @@ Pillow
 fpdf2
 pandas
 numpy
+openpyxl
 
 # Modern desktop UI preview
 PySide6

@@ -8,7 +8,7 @@ import sys
 import json
 import socket
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 import csv
 import random
 import string
@@ -449,9 +449,10 @@ class Database:
                 cur.execute("""UPDATE rent_requirements
                                SET budget=budget_max
                                WHERE budget IS NULL AND budget_max IS NOT NULL""")
-            if "expected_close_value" in rr_cols and "budget" in rr_cols:
-                cur.execute("""UPDATE rent_requirements
-                               SET expected_close_value=COALESCE(budget, budget_max, 0)
+            rr_value_cols = [col for col in ("budget", "budget_max") if col in rr_cols]
+            if "expected_close_value" in rr_cols and rr_value_cols:
+                cur.execute(f"""UPDATE rent_requirements
+                               SET expected_close_value=COALESCE({', '.join(rr_value_cols)}, 0)
                                WHERE expected_close_value IS NULL OR expected_close_value=0""")
             if "remarks" in rr_cols and "notes" in rr_cols:
                 cur.execute("""UPDATE rent_requirements
@@ -535,9 +536,10 @@ class Database:
                 cur.execute("""UPDATE sale_requirements
                                SET budget=budget_max
                                WHERE budget IS NULL AND budget_max IS NOT NULL""")
-            if "expected_close_value" in sr_cols and "budget" in sr_cols:
-                cur.execute("""UPDATE sale_requirements
-                               SET expected_close_value=COALESCE(budget, budget_max, 0)
+            sr_value_cols = [col for col in ("budget", "budget_max") if col in sr_cols]
+            if "expected_close_value" in sr_cols and sr_value_cols:
+                cur.execute(f"""UPDATE sale_requirements
+                               SET expected_close_value=COALESCE({', '.join(sr_value_cols)}, 0)
                                WHERE expected_close_value IS NULL OR expected_close_value=0""")
 
             sa_cols = Database._table_columns(conn, "sale_availability")
@@ -568,9 +570,10 @@ class Database:
                 cur.execute("""UPDATE sale_availability
                                SET demand=asking_price
                                WHERE demand IS NULL AND asking_price IS NOT NULL""")
-            if "expected_close_value" in sa_cols and "demand" in sa_cols:
-                cur.execute("""UPDATE sale_availability
-                               SET expected_close_value=COALESCE(demand, asking_price, 0)
+            sa_value_cols = [col for col in ("demand", "asking_price") if col in sa_cols]
+            if "expected_close_value" in sa_cols and sa_value_cols:
+                cur.execute(f"""UPDATE sale_availability
+                               SET expected_close_value=COALESCE({', '.join(sa_value_cols)}, 0)
                                WHERE expected_close_value IS NULL OR expected_close_value=0""")
 
             conn.commit()
@@ -2254,7 +2257,7 @@ class RealEstateCRM:
                     return
                 table = path.replace("/records/", "", 1).strip().lower()
                 if table not in self._allowed_tables():
-                    self._send({"ok": False, "error": f"invalid table"}, 400)
+                    self._send({"ok": False, "error": "invalid table"}, 400)
                     return
                 try:
                     length = int(self.headers.get('Content-Length', 0))
@@ -5342,7 +5345,6 @@ class RealEstateCRM:
                 messagebox.showwarning("Select", "Please select a user to edit", parent=win)
                 return
             uid      = tree.item(sel[0])['values'][0]
-            username = tree.item(sel[0])['values'][1]
             result = Database.execute("SELECT * FROM users WHERE id=?", (uid,), fetch=True)
             if not result:
                 return
@@ -6306,7 +6308,7 @@ def main():
         return
 
     main_root = tk.Tk()
-    app = RealEstateCRM(main_root, login.current_user)
+    main_root.crm_app = RealEstateCRM(main_root, login.current_user)
     main_root.mainloop()
 
 

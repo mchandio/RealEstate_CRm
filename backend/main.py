@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -9,6 +9,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from backend.config import API_HOST, API_PORT, CORS_ORIGINS, CORS_ORIGIN_REGEX
 from backend.database import init_db
+from backend.auth import require_permission
 from backend.routers import auth_router, records_router, reports_router, public_router
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
@@ -21,7 +22,7 @@ NO_CACHE_HEADERS = {
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["30/second"])
 
-app = FastAPI(title="Real Estate CRM API", version="2.0.0")
+app = FastAPI(title="Real Estate CRM API", version="2.1.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -63,6 +64,13 @@ def on_startup():
                 is_active=True,
             ))
             db.commit()
+        try:
+            sync_counts = records_router.sync_all_deal_inventory(db)
+            db.commit()
+            logger.info("Deal inventory sync completed: %s", sync_counts)
+        except Exception:
+            db.rollback()
+            logger.exception("Deal inventory sync failed during startup")
     finally:
         db.close()
     start_daily_backup_scheduler()
@@ -76,7 +84,16 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "version": "2.0.0"}
+    return {"status": "ok", "version": "2.1.0"}
+
+
+@app.post("/api/system/backup/schedule")
+def schedule_system_backup(_user=Depends(require_permission("backup"))):
+    """Create a SQLite backup through the server backup helper."""
+    from backend.backup import run_database_backup
+
+    path = run_database_backup("scheduled")
+    return {"status": "backup_completed", "filename": path.name}
 
 
 # Serve frontend SPA — catch-all for non-API routes
