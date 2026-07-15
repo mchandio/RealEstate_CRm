@@ -363,6 +363,162 @@ transaction_date,property_id,income_type,amount,tenant_name
 
 ---
 
+## 🧪 Development & Testing
+
+### Setting Up Development Environment
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd RealEstate_CRM
+```
+
+2. **Create virtual environment**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# or
+.venv\Scripts\activate  # Windows
+```
+
+3. **Install dependencies**
+```bash
+# Install production dependencies
+pip install -r requirements.txt
+
+# Install development dependencies
+pip install -r requirements-dev.txt
+```
+
+### Using Makefile Commands
+
+The project includes a Makefile with common development commands:
+
+```bash
+# Show available commands
+make help
+
+# Set up development environment
+make setup
+
+# Install all dependencies
+make install-dev
+
+# Run tests
+make test
+
+# Run tests with coverage
+make test-coverage
+
+# Run linting checks
+make lint
+
+# Auto-format code
+make format
+
+# Run type checking
+make typecheck
+
+# Check syntax of all Python files
+make check-syntax
+
+# Run all validation checks
+make validate
+
+# Clean up generated files
+make clean
+```
+
+### Running Tests
+
+**Using pytest:**
+```bash
+# Run all tests
+python3 -m pytest tests/ -v
+
+# Run tests with coverage report
+python3 -m pytest tests/ -v --cov=backend --cov=crm_core --cov=CRM --cov-report=html
+
+# Run specific test file
+python3 -m pytest tests/test_reports_logic.py -v
+```
+
+**Using unittest:**
+```bash
+# Discover and run all tests
+python3 -m unittest discover -s tests -v
+```
+
+### Code Quality
+
+**Linting:**
+```bash
+# Check code style with flake8
+flake8 backend/ crm_core/ CRM/ --max-line-length=100
+
+# Check code formatting with black
+black --check backend/ crm_core/ CRM/
+```
+
+**Formatting:**
+```bash
+# Auto-format code with black
+black backend/ crm_core/ CRM/
+
+# Sort imports with isort
+isort backend/ crm_core/ CRM/
+```
+
+**Type Checking:**
+```bash
+# Run mypy type checker
+mypy backend/ --ignore-missing-imports
+```
+
+### Syntax Validation
+
+Before committing changes, validate that all Python files have correct syntax:
+
+```bash
+# Check syntax of key files
+python3 -m py_compile backend/main.py
+python3 -m py_compile backend/auth.py
+python3 -m py_compile crm_core/reports.py
+python3 -m py_compile CRM/app_window.py
+
+# Or use the Makefile command
+make check-syntax
+```
+
+### Pre-commit Hooks (Optional)
+
+To set up pre-commit hooks for automatic code quality checks:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install hooks
+pre-commit install
+
+# Run hooks on all files
+pre-commit run --all-files
+```
+
+### Documentation
+
+To build documentation (if Sphinx is installed):
+
+```bash
+# Install documentation dependencies
+pip install sphinx sphinx-rtd-theme
+
+# Build documentation
+sphinx-build -b html docs/ docs/_build/html
+```
+
+---
+
 ## 🔮 Future Enhancements
 
 - ✨ Web-based dashboard (Flask/Django)
