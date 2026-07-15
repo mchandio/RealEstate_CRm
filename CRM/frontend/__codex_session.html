@@ -1,0 +1,8 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>QA Session</title>
+<script>
+  const token = location.hash.slice(1);
+  if (token) localStorage.setItem('token', token);
+  location.replace('/');
+</script>

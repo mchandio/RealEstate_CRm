@@ -1864,7 +1864,7 @@ class RealEstateCRM:
         style.configure('TNotebook.Tab', font=('Segoe UI', 9, 'bold'), padding=[12, 5])
         
         style.configure('Treeview',
-                        rowheight=34,
+                        rowheight=46,
                         font=('Segoe UI', 10),
                         background='white',
                         fieldbackground='white',
@@ -1924,9 +1924,9 @@ class RealEstateCRM:
             elif col in money_cols:
                 min_w, cap = 120, 180
             elif col in long_cols:
-                min_w, cap = 170, 680
+                min_w, cap = 170, 420
             else:
-                min_w, cap = 105, 320
+                min_w, cap = 105, 260
 
             width = min(max(max_w, min_w), cap)
             tree.heading(col, anchor='w')
@@ -5764,7 +5764,7 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
 
         for c in cols:
             tree.heading(c, text=c, anchor='w')
-            tree.column(c, width=max(110, len(c) * 12), minwidth=90,
+            tree.column(c, width=max(130, len(c) * 13), minwidth=100,
                         anchor='w', stretch=False)
 
         vsb = ttk.Scrollbar(tree_container, orient='vertical', command=tree.yview)

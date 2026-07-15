@@ -26,6 +26,33 @@ const ROLE_TABS = {
   'Viewer': ['phase1','dashboard','rent','sale','find','reports']
 };
 
+
+// === INLINE MENU HANDLERS (defined at top for reliability) ===
+function toggleMenu(event, menuName) {
+  // Find all menu items and close their dropdowns
+  document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('active'));
+  document.querySelectorAll('.menu-item.open').forEach(i => i.classList.remove('open'));
+  
+  // Open the clicked menu
+  const menuItem = event.currentTarget;
+  const dropdown = menuItem.querySelector('.menu-dropdown');
+  if (dropdown) {
+    dropdown.classList.add('active');
+    menuItem.classList.add('open');
+  }
+}
+
+function menuAction(event, action) {
+  event.stopPropagation();
+  // Close all menus
+  document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('active'));
+  document.querySelectorAll('.menu-item.open').forEach(i => i.classList.remove('open'));
+  // Execute the action
+  if (typeof handleMenuAction === 'function') {
+    handleMenuAction(action);
+  }
+}
+
 function normalizeRole(role) {
   const text = String(role || '').trim().replace(/\s+/g, ' ');
   const key = text.toLowerCase();
@@ -88,15 +115,89 @@ const PHASE1_LABELS = {
   sale_availability: 'Sale Availability',
   sold_properties: 'Sold Property'
 };
-const DEAL_STAGES = ['Lead','Contacted','Visit Scheduled','Negotiation','Pending','Closed','Deal Done'];
+const DEAL_STAGES = ['Lead','Contacted','Visit Scheduled','Negotiation','Title Verified','Pending','Closed','Deal Done'];
 const AVAILABILITY_STATUSES = ['Available','Pending','Reserved','Rented','Sold','Withdrawn','Inactive'];
 const GENERIC_STATUSES = ['Active','Pending','Inactive','Closed'];
+const VERIFICATION_STATUSES = ['Unverified','Documents Pending','Title Clear','NOC Obtained','Registry Done','Transfer Complete'];
+
+// Karachi Real Estate Market Data (synced with Qt Desktop)
 const DEFAULT_PHASE1 = {
-  areas: ['Gizri','DHA','DHA Phase 1','DHA Phase 2','DHA Phase 4','DHA Phase 5','DHA Phase 6','DHA Phase 7','DHA Phase 8','Defence','Clifton','Zamzama','Boat Basin','Sea View','Marina'],
-  facilities: ['Light With Loadshedding','Light 24/7','Gas','Sweet Water','Salty Water','Car Parking','Bike Parking','Lift','CCTV Camera','Watchman'],
-  floors: ['Basement','Ground','Mezzanine','1st','2nd','3rd','4th','5th','6th','7th','8th','9th','10th','Top'],
-  propertyTypes: ['Flat','Bungalow','House','Shop','Office','Warehouse','Plot','Building','Villa'],
-  measurementUnits: ['Sq Ft','Yards']
+  // 101 Karachi areas organized by price tier
+  areas: [
+    // DHA Phases (Premium)
+    'DHA Phase 1','DHA Phase 2','DHA Phase 4','DHA Phase 5','DHA Phase 6','DHA Phase 7','DHA Phase 8',
+    'DHA Phase 1 Commercial','DHA Phase 2 Commercial','DHA Phase 5 Commercial','DHA Phase 6 Commercial','DHA Phase 8 Commercial',
+    // Clifton & Surrounding (Premium)
+    'Clifton','Clifton Block 1','Clifton Block 2','Clifton Block 3','Clifton Block 4','Clifton Block 5','Clifton Block 6','Clifton Block 7','Clifton Block 8','Clifton Block 9',
+    'Zamzama','Boat Basin','Sea View','Marina','Gizri','Cantt','Civil Lines',
+    // DHA Khayabans (Premium)
+    'Khayaban-e-Ittehad','Khayaban-e-Bukhari','Khayaban-e-Shahbaz','Khayaban-e-Hafiz','Khayaban-e-Rahat','Khayaban-e-Sehar','Khayaban-e-Tariq','Khayaban-e-Muslim','Khayaban-e-Jami','Khayaban-e-Ameer Khusro','Khayaban-e-Roomi',
+    // Askari (Premium)
+    'Askari 1','Askari 2','Askari 3','Askari 4','Askari 5',
+    // Commercial Areas
+    'Badar Commercial','Bukhari Commercial','Tauheed Commercial','Zamzama Commercial','Shaheen Complex',
+    // Upper-Mid (PKR 40k-80k/sq yard)
+    'PECHS','Tariq Road','Bahadurabad','KDA Scheme','Gulshan-e-Iqbal','Gulshan-e-Jauhar','Gulshan 13','Gulshan 14','FB Area','North Nazimabad','Nazimabad',
+    // Mid-Range (PKR 15k-40k/sq yard)
+    'Gulistan-e-Johar','Gulistan-e-Maymar','Scheme 33','Korangi','Korangi Road','Landhi','Malir','Malir Cantt','Airport','Lyari','Saddar','M A Jinnah Road',
+    // Bahria Town (Mid-Range)
+    'Bahria Town Karachi','Bahria Sports City','Bahria Precinct 1','Bahria Precinct 2','Bahria Precinct 5','Bahria Precinct 8','Bahria Precinct 10','Bahria Precinct 15','Bahria Jinnah Commercial','Bahria Midway Commercial',
+    // Emerging Areas (PKR 8k-20k/sq yard)
+    'DHA City Karachi','DHA City Karachi Phase 1','DHA City Karachi Phase 2','Bin Qasim','Gadap Town','Hub River Road','Superhighway','Nooriabad',
+    // Cantonment Areas
+    'Clifton Cantt','Karachi Cantt','Fighter Cantt',
+    // Other Areas
+    'Qayumabad','Hyderi','Water Pump','Soldier Bazar','Memon Goth','Madina Colony','Sultanabad'
+  ],
+  // 41 facilities including Karachi-specific amenities
+  facilities: [
+    // Electricity/Utilities
+    'Light 24/7','Light With Loadshedding','Generator','Solar','Inverter',
+    // Gas
+    'Sui Gas','LPG Gas','No Gas',
+    // Water
+    'Sweet Water','Bore Water','Tank Water','Water Tank','No Water Issue',
+    // Security
+    'Watchman','CCTV Camera','Security Fence','Gated Community','Boundary Wall',
+    // Parking
+    'Car Parking','Bike Parking','Covered Parking','No Parking',
+    // Building Features
+    'Lift','Service Lift','Fire Exit','Stairs',
+    // Furnishing
+    'Furnished','Semi-Furnished','Unfurnished',
+    // AC/Climate
+    'Central AC','Split AC','AC Installed',
+    // Location/Position
+    'Main Road','Side Road','Corner Plot','Back To Back',
+    // Proximity
+    'Near Market','Near Mosque','Near School','Near Hospital','Near Main Road'
+  ],
+  floors: ['Basement','Ground','Mezzanine','1st','2nd','3rd','4th','5th','6th','7th','8th','9th','10th','11th','12th','Top'],
+  // 22 property types (expanded for Karachi market)
+  propertyTypes: ['Flat','Apartment','Penthouse','Bungalow','House','Villa','Townhouse','Row House','Shop','Showroom','Office','Plaza','Commercial Plaza','Warehouse','Factory','Industrial Unit','Plot','File','Land','Hotel Suite','Service Apartment','Building','Floor','Portion'],
+  // Standard Pakistani measurement units
+  measurementUnits: ['Sq Ft','Sq Yard','Marla','Kanal','Acre']
+};
+
+// Karachi Market Price Brackets (PKR)
+const KARACHI_PRICE_BRACKETS = {
+  'Budget': { min: 0, max: 5000000, label: 'Under 50 Lakh' },
+  'Mid-Range': { min: 5000000, max: 25000000, label: '50 Lakh - 2.5 Crore' },
+  'Premium': { min: 25000000, max: 100000000, label: '2.5 - 10 Crore' },
+  'Luxury': { min: 100000000, max: 500000000, label: '10 - 50 Crore' },
+  'Ultra-Luxury': { min: 500000000, max: null, label: 'Above 50 Crore' }
+};
+
+// Karachi Area Price Estimates (per sq yard)
+const KARACHI_AREA_PRICES = {
+  'DHA Phase 1': 135000,'DHA Phase 2': 130000,'DHA Phase 4': 95000,'DHA Phase 5': 90000,
+  'DHA Phase 6': 110000,'DHA Phase 7': 85000,'DHA Phase 8': 100000,'Clifton': 160000,
+  'Zamzama': 120000,'Boat Basin': 110000,'Sea View': 95000,'Marina': 130000,
+  'Askari 1': 120000,'Askari 2': 120000,'Askari 3': 120000,'Askari 4': 120000,'Askari 5': 120000,
+  'Cantt': 100000,'PECHS': 70000,'Tariq Road': 65000,'Gulshan-e-Iqbal': 60000,
+  'Bahadurabad': 55000,'North Nazimabad': 45000,'FB Area': 40000,'Gulistan-e-Johar': 35000,
+  'Scheme 33': 30000,'Korangi': 25000,'Malir': 20000,'Bahria Town Karachi': 18000,
+  'Bahria Sports City': 15000,'DHA City Karachi': 12000,'Bin Qasim': 8000,'Superhighway': 6000
 };
 
 // Loading State Management
@@ -4002,32 +4103,37 @@ function closeAllMenuDropdowns() {
   document.querySelectorAll('.menu-item.open').forEach(item => item.classList.remove('open'));
 }
 
-document.querySelectorAll('.menu-item').forEach(item => {
-  item.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const dropdown = item.querySelector('.menu-dropdown');
-    const isActive = dropdown?.classList.contains('active');
-    closeAllMenuDropdowns();
-    if (dropdown && !isActive) {
-      dropdown.classList.add('active');
-      item.classList.add('open');
-    }
-  });
-});
-
-// Close menus when clicking outside
-document.addEventListener('click', () => {
-  closeAllMenuDropdowns();
-});
-
-// Menu actions
-document.querySelectorAll('.menu-dropdown-item').forEach(item => {
-  item.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const action = item.dataset.action;
+// Event delegation on the menu bar for toggle + actions (no stopPropagation conflicts)
+document.getElementById('top-menu-bar')?.addEventListener('click', (e) => {
+  // Click on a menu-dropdown-item: execute action
+  const dropdownItem = e.target.closest('.menu-dropdown-item');
+  if (dropdownItem) {
+    const action = dropdownItem.dataset.action;
     closeAllMenuDropdowns();
     handleMenuAction(action);
-  });
+    return;
+  }
+
+  // Click on a menu-item: toggle dropdown
+  const menuItem = e.target.closest('.menu-item');
+  if (menuItem) {
+    const dropdown = menuItem.querySelector('.menu-dropdown');
+    if (dropdown) {
+      const isActive = dropdown.classList.contains('active');
+      closeAllMenuDropdowns();
+      if (!isActive) {
+        dropdown.classList.add('active');
+        menuItem.classList.add('open');
+      }
+    }
+  }
+});
+
+// Close menus when clicking outside the menu bar
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#top-menu-bar')) {
+    closeAllMenuDropdowns();
+  }
 });
 
 function showDocumentationModal() {

@@ -188,6 +188,20 @@ def count_matched_demand_supply_pairs(db: Session, *, minimum_score: float = MAT
     return pairs
 
 
+def count_closed_deals_from_session(db: Session) -> int:
+    """Count closed deals using the SQLAlchemy session (not the file DB)."""
+    closed_stage = 0
+    for model in (RentRequirement, RentAvailability, SaleRequirement, SaleAvailability):
+        if hasattr(model, "workflow_stage"):
+            stage_col = getattr(model, "workflow_stage")
+            closed_stage += db.query(model).filter(
+                func.lower(func.coalesce(stage_col, "")) == "deal done"
+            ).count()
+    rented = db.query(RentedProperty).count()
+    sold = db.query(SoldProperty).count()
+    return closed_stage + rented + sold
+
+
 def client_segments(db: Session) -> list[dict]:
     total = db.query(Client).count()
     if total <= 0:
@@ -218,10 +232,20 @@ def client_segments(db: Session) -> list[dict]:
 @router.get("/dashboard")
 def dashboard_stats(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     require_perm(user, "dashboard")
-    return report_service(db).dashboard_summary(
+    result = report_service(db).dashboard_summary(
         generated_by=user.full_name or user.username,
         generated_role=user.role,
     )
+    # Override deal metrics with session-aware counts so the API
+    # always reflects the live SQLAlchemy session rather than the file DB.
+    result["active_matched_pairs"] = count_matched_demand_supply_pairs(db)
+    result["closed_deals"] = count_closed_deals_from_session(db)
+    result["matched_pairs"] = result["active_matched_pairs"] + result["closed_deals"]
+    if result["matched_pairs"]:
+        result["conversion_rate"] = round(
+            (result["closed_deals"] / result["matched_pairs"]) * 100
+        )
+    return result
 
 
 @router.get("/financial")

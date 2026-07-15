@@ -1,9 +1,213 @@
-"""Shared explainable matching logic for CRM deal records."""
+"""Shared explainable matching logic for CRM deal records - Karachi Real Estate Edition."""
 
 from __future__ import annotations
 
 import re
 from typing import Any
+
+# =============================================================================
+# KARACHI LOCATION ALIASES FOR MATCHING
+# =============================================================================
+
+KARACHI_LOCATION_ALIASES: dict[str, str] = {
+    # DHA variants
+    "dha": "DHA",
+    "defence": "DHA",
+    "defence housing": "DHA",
+    "defence housing authority": "DHA",
+    "phase 1": "DHA Phase 1",
+    "phase-1": "DHA Phase 1",
+    "phase1": "DHA Phase 1",
+    "1": "DHA Phase 1",
+    "phase 2": "DHA Phase 2",
+    "phase-2": "DHA Phase 2",
+    "phase2": "DHA Phase 2",
+    "2": "DHA Phase 2",
+    "phase 4": "DHA Phase 4",
+    "phase-4": "DHA Phase 4",
+    "phase4": "DHA Phase 4",
+    "4": "DHA Phase 4",
+    "phase 5": "DHA Phase 5",
+    "phase-5": "DHA Phase 5",
+    "phase5": "DHA Phase 5",
+    "5": "DHA Phase 5",
+    "phase 6": "DHA Phase 6",
+    "phase-6": "DHA Phase 6",
+    "phase6": "DHA Phase 6",
+    "6": "DHA Phase 6",
+    "phase 7": "DHA Phase 7",
+    "phase-7": "DHA Phase 7",
+    "phase7": "DHA Phase 7",
+    "7": "DHA Phase 7",
+    "phase 8": "DHA Phase 8",
+    "phase-8": "DHA Phase 8",
+    "phase8": "DHA Phase 8",
+    "8": "DHA Phase 8",
+    # Clifton variants
+    "clifton": "Clifton",
+    "cb": "Clifton Block",
+    "clifton block": "Clifton Block",
+    "block": "Clifton Block",
+    "cliftonblock": "Clifton Block",
+    # Bahria variants
+    "bahria": "Bahria Town Karachi",
+    "bth": "Bahria Town Karachi",
+    "btk": "Bahria Town Karachi",
+    "bahria town": "Bahria Town Karachi",
+    "bahria sports": "Bahria Sports City",
+    "bahria precint": "Bahria Town Karachi",
+    "precinct": "Bahria Town Karachi",
+    # Gulshan variants
+    "gulshan": "Gulshan-e-Iqbal",
+    "gulshan iqbal": "Gulshan-e-Iqbal",
+    "gulshan-e-iqbal": "Gulshan-e-Iqbal",
+    "gulshan jauhar": "Gulshan-e-Jauhar",
+    "gulshan-e-jauhar": "Gulshan-e-Jauhar",
+    # Other common aliases
+    "nazimabad": "North Nazimabad",
+    "f.b area": "FB Area",
+    "fb area": "FB Area",
+    "f.b.area": "FB Area",
+    "gulistan johar": "Gulistan-e-Johar",
+    "gulistan-e-johar": "Gulistan-e-Johar",
+    "scheme 33": "Scheme 33",
+    "scheme33": "Scheme 33",
+    "north nazimabad": "North Nazimabad",
+    "pec hs": "PECHS",
+    "pecshs": "PECHS",
+    "tariq road": "Tariq Road",
+    "tariqroad": "Tariq Road",
+    "badar": "Badar Commercial",
+    "bukhari": "Bukhari Commercial",
+    "badar commercial": "Badar Commercial",
+    "bukhari commercial": "Bukhari Commercial",
+    "zamzama": "Zamzama",
+    "boat basin": "Boat Basin",
+    "boatbasin": "Boat Basin",
+    "sea view": "Sea View",
+    "seaview": "Sea View",
+    "marina": "Marina",
+    "cantt": "Cantt",
+    "malir": "Malir",
+    "korangi": "Korangi",
+    "landhi": "Korangi",
+    "lyari": "Lyari",
+    "saddar": "Saddar",
+}
+
+# DHA Phase-specific aliases
+DHA_PHASE_ALIASES: dict[str, str] = {
+    "ph1": "DHA Phase 1",
+    "ph 1": "DHA Phase 1",
+    "ph-1": "DHA Phase 1",
+    "ph2": "DHA Phase 2",
+    "ph 2": "DHA Phase 2",
+    "ph-2": "DHA Phase 2",
+    "ph4": "DHA Phase 4",
+    "ph 4": "DHA Phase 4",
+    "ph-4": "DHA Phase 4",
+    "ph5": "DHA Phase 5",
+    "ph 5": "DHA Phase 5",
+    "ph-5": "DHA Phase 5",
+    "ph6": "DHA Phase 6",
+    "ph 6": "DHA Phase 6",
+    "ph-6": "DHA Phase 6",
+    "ph7": "DHA Phase 7",
+    "ph 7": "DHA Phase 7",
+    "ph-7": "DHA Phase 7",
+    "ph8": "DHA Phase 8",
+    "ph 8": "DHA Phase 8",
+    "ph-8": "DHA Phase 8",
+}
+
+
+def normalize_karachi_location(location: str) -> str:
+    """Normalize Karachi location names using aliases.
+
+    Args:
+        location: Raw location string
+
+    Returns:
+        Normalized location string
+    """
+    if not location:
+        return ""
+
+    normalized = normalize_text(location)
+
+    # Check DHA phase aliases first (more specific)
+    for alias, canonical in DHA_PHASE_ALIASES.items():
+        if alias in normalized:
+            return canonical
+
+    # Check general location aliases
+    for alias, canonical in KARACHI_LOCATION_ALIASES.items():
+        if alias in normalized:
+            return canonical
+
+    # Return original if no match
+    return str(location).strip()
+
+
+def location_similarity(left: str, right: str) -> float:
+    """Calculate location similarity using Karachi-specific normalization.
+
+    This function handles Karachi's common location variations and
+    provides higher scores for DHA phase matches and area matches.
+
+    Args:
+        left: First location string
+        right: Second location string
+
+    Returns:
+        Similarity score between 0.0 and 1.0
+    """
+    if not left or not right:
+        return 0.0
+
+    left_norm = normalize_text(left)
+    right_norm = normalize_text(right)
+
+    # Exact match
+    if left_norm == right_norm:
+        return 1.0
+
+    # Check if both normalized to same canonical form
+    left_canon = normalize_karachi_location(left)
+    right_canon = normalize_karachi_location(right)
+
+    if left_canon and right_canon and left_canon == right_canon:
+        return 0.95
+
+    # Check substring matches (one contains the other)
+    if left_norm in right_norm or right_norm in left_norm:
+        return 0.85
+
+    # Token overlap
+    left_tokens = tokens(left)
+    right_tokens = tokens(right)
+
+    if left_tokens and right_tokens:
+        overlap = len(left_tokens & right_tokens)
+        total = len(left_tokens | right_tokens)
+        if overlap > 0:
+            return 0.5 + (overlap / total) * 0.35
+
+    # Check if both are DHA phases (same area family)
+    left_lower = left_norm.lower()
+    right_lower = right_norm.lower()
+
+    if "dha" in left_lower and "dha" in right_lower:
+        # Extract phase numbers
+        left_match = re.search(r'phase\s*(\d+)', left_lower)
+        right_match = re.search(r'phase\s*(\d+)', right_lower)
+        if left_match and right_match:
+            if left_match.group(1) == right_match.group(1):
+                return 0.9
+            return 0.6  # Same DHA family, different phase
+        return 0.7  # Both DHA but no phase specified
+
+    return 0.0
 
 
 def prefilter_candidates(
@@ -159,15 +363,30 @@ def is_open_candidate(row: dict[str, Any], table: str) -> bool:
 
 
 def _location_score(left: str, right: str) -> tuple[float, str | None]:
+    """Calculate location matching score using Karachi-aware normalization."""
     if not left or not right:
         return 0.0, None
-    if left == right:
+
+    left_text = normalize_text(left)
+    right_text = normalize_text(right)
+
+    if left_text == right_text:
         return 30.0, "same location"
-    if left in right or right in left:
+
+    # Use Karachi-aware similarity
+    similarity = location_similarity(left, right)
+
+    if similarity >= 0.95:
+        return 30.0, "same location"
+    elif similarity >= 0.85:
+        return 27.0, "same location"
+    elif similarity >= 0.7:
         return 24.0, "near location"
-    overlap = tokens(left) & tokens(right)
-    if overlap:
-        return min(20.0, 8.0 + len(overlap) * 4.0), "location word match"
+    elif similarity >= 0.5:
+        overlap = tokens(left_text) & tokens(right_text)
+        if overlap:
+            return min(20.0, 8.0 + len(overlap) * 4.0), "location word match"
+
     return 0.0, None
 
 

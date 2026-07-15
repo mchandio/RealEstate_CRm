@@ -1,0 +1,53 @@
+doc supported services:
+  com.sun.star.sdb.OfficeDatabaseDocument
+  com.sun.star.document.OfficeDocument
+
+properties:
+getPropertySetInfo failed: getPropertySetInfo
+
+DataSource
+DataSource type: <class 'pyuno'>
+DataSource supports: ('com.sun.star.sdb.DataSource', 'com.sun.star.sdb.DocumentDataSource')
+  Name = 
+  URL = jdbc:
+  DatabaseDocument = pyuno object (com.sun.star.sdb.XOfficeDatabaseDocument)0x107c4f38{implementationName=com.sun.star.comp.dba.ODatabaseDocument, supportedServices={com.sun.star.sdb.OfficeDatabaseDocument,com.sun.star.document.OfficeDocument}, supportedInterfaces={com.sun.star.frame.XModel3,com.sun.star.util.XModifiable,com.sun.star.frame.XStorable,com.sun.star.document.XEventBroadcaster,com.sun.star.document.XDocumentEventBroadcaster,com.sun.star.view.XPrintable,com.sun.star.util.XCloseable,com.sun.star.lang.XServiceInfo,com.sun.star.sdb.XOfficeDatabaseDocument,com.sun.star.ui.XUIConfigurationManagerSupplier,com.sun.star.document.XStorageBasedDocument,com.sun.star.document.XEmbeddedScripts,com.sun.star.document.XScriptInvocationContext,com.sun.star.script.provider.XScriptProviderSupplier,com.sun.star.document.XEventsSupplier,com.sun.star.frame.XLoadable,com.sun.star.document.XDocumentRecovery,com.sun.star.frame.XTitle,com.sun.star.frame.XTitleChangeBroadcaster,com.sun.star.frame.XUntitledNumbers,com.sun.star.lang.XTypeProvider,com.sun.star.uno.XWeak,com.sun.star.lang.XComponent}}
+  ImplementationName = com.sun.star.comp.dba.ODatabaseSource
+  SupportedServiceNames = ('com.sun.star.sdb.DataSource', 'com.sun.star.sdb.DocumentDataSource')
+  DataSource err: DataSource
+  Location err: Location
+DataSource attrs:
+    DatabaseDocument
+    ImplementationName
+    Name
+    PropertySetInfo
+    Settings
+    SupportedServiceNames
+    URL
+    addPropertyChangeListener
+    getBookmarks
+    getConnection
+    getFastPropertyValue
+    getImplementationId
+    getImplementationName
+    getIsolatedConnection
+    getIsolatedConnectionWithCompletion
+    getLoginTimeout
+    getPropertySetInfo
+    getPropertySetInfo
+    getPropertyValue
+    getPropertyValues
+    getQueryDefinitions
+    getSupportedServiceNames
+    getTables
+    getTypes
+    removePropertyChangeListener
+    setFastPropertyValue
+    setLoginTimeout
+    setPropertyValue
+    setPropertyValues
+
+script provider support:
+has ScriptProvider: False
+script provider object: pyuno object (com.sun.star.script.provider.XScriptProvider)0x10824108{implementationName=com.sun.star.script.provider.MasterScriptProvider, supportedServices={com.sun.star.script.provider.MasterScriptProvider,com.sun.star.script.browse.BrowseNode,com.sun.star.script.provider.ScriptProvider}, supportedInterfaces={com.sun.star.script.provider.XScriptProvider,com.sun.star.script.browse.XBrowseNode,com.sun.star.lang.XServiceInfo,com.sun.star.lang.XInitialization,com.sun.star.container.XNameContainer,com.sun.star.lang.XTypeProvider,com.sun.star.uno.XWeak}}
+
+done

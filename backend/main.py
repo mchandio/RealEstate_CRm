@@ -1,5 +1,6 @@
 import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,31 +21,12 @@ NO_CACHE_HEADERS = {
     "Expires": "0",
 }
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["30/second"])
-
-app = FastAPI(title="Real Estate CRM API", version="2.1.0")
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_origin_regex=CORS_ORIGIN_REGEX,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(auth_router.router)
-app.include_router(records_router.router)
-app.include_router(reports_router.router)
-app.include_router(public_router.router)
-
 logger = logging.getLogger("realestate_crm")
 
 
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- startup ---
     init_db()
     from backend.database import SessionLocal
     from backend.models import User
@@ -74,6 +56,32 @@ def on_startup():
     finally:
         db.close()
     start_daily_backup_scheduler()
+
+    yield  # application is running
+
+    # --- shutdown ---
+    logger.info("Application shutting down")
+
+
+limiter = Limiter(key_func=get_remote_address, default_limits=["30/second"])
+
+app = FastAPI(title="Real Estate CRM API", version="2.1.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_origin_regex=CORS_ORIGIN_REGEX,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth_router.router)
+app.include_router(records_router.router)
+app.include_router(reports_router.router)
+app.include_router(public_router.router)
 
 
 @app.exception_handler(Exception)

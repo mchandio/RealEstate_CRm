@@ -721,3 +721,282 @@ class IntelligenceService:
             "income_transactions": "Income",
             "expense_transactions": "Expense",
         }.get(table, table[:9])
+
+    # =============================================================================
+    # KARACHI MARKET ANALYTICS
+    # =============================================================================
+
+    def get_area_analytics(self, area: str) -> dict[str, Any]:
+        """Get analytics for a specific Karachi area.
+
+        Args:
+            area: Location name (e.g., "DHA Phase 6", "Clifton")
+
+        Returns:
+            Dictionary with price stats, demand/supply, and recommendations
+        """
+        if not AI_LIBS_AVAILABLE:
+            return {"error": "AI libraries not available"}
+
+        frames = self._load_frames()
+        area_lower = area.lower()
+
+        # Filter records for this area
+        def matches_area(df: Any) -> Any:
+            if df.empty or "location" not in df:
+                return pd.DataFrame()
+            return df[df["location"].str.lower().str.contains(area_lower, na=False)]
+
+        rent_av = matches_area(frames.get("rent_availability", pd.DataFrame()))
+        sale_av = matches_area(frames.get("sale_availability", pd.DataFrame()))
+        rent_req = matches_area(frames.get("rent_requirements", pd.DataFrame()))
+        sale_req = matches_area(frames.get("sale_requirements", pd.DataFrame()))
+
+        # Calculate rental stats
+        rent_prices = self._numeric(rent_av.get("monthly_rent", pd.Series()))
+        rent_prices = rent_prices[rent_prices > 0]
+        rent_avg = float(rent_prices.mean()) if len(rent_prices) > 0 else 0
+        rent_min = float(rent_prices.min()) if len(rent_prices) > 0 else 0
+        rent_max = float(rent_prices.max()) if len(rent_prices) > 0 else 0
+
+        # Calculate sale stats
+        sale_prices = self._numeric(sale_av.get("demand", pd.Series()))
+        sale_prices = sale_prices[sale_prices > 0]
+        sale_avg = float(sale_prices.mean()) if len(sale_prices) > 0 else 0
+        sale_min = float(sale_prices.min()) if len(sale_prices) > 0 else 0
+        sale_max = float(sale_prices.max()) if len(sale_prices) > 0 else 0
+
+        # Calculate demand vs supply
+        demand_count = len(rent_req) + len(sale_req)
+        supply_count = len(rent_av) + len(sale_av)
+
+        # Determine market conditions
+        if supply_count == 0:
+            market_condition = "No Data"
+            recommendation = "Add listings to analyze market"
+        elif demand_count > supply_count * 1.5:
+            market_condition = "High Demand"
+            recommendation = f"Consider listing - {demand_count} buyers vs {supply_count} sellers"
+        elif supply_count > demand_count * 1.5:
+            market_condition = "High Supply"
+            recommendation = "Competitive market - price accordingly"
+        else:
+            market_condition = "Balanced"
+            recommendation = "Market is balanced between supply and demand"
+
+        return {
+            "area": area,
+            "rental": {
+                "active_listings": len(rent_av),
+                "average_rent": self._money(rent_avg),
+                "rent_range": f"{self._money(rent_min)} - {self._money(rent_max)}",
+                "demand": len(rent_req),
+            },
+            "sale": {
+                "active_listings": len(sale_av),
+                "average_price": self._money(sale_avg),
+                "price_range": f"{self._money(sale_min)} - {self._money(sale_max)}",
+                "demand": len(sale_req),
+            },
+            "market_condition": market_condition,
+            "recommendation": recommendation,
+        }
+
+    def get_market_comparison(self, areas: list[str]) -> str:
+        """Compare multiple areas for investment potential.
+
+        Args:
+            areas: List of location names to compare
+
+        Returns:
+            Formatted comparison report
+        """
+        if not AI_LIBS_AVAILABLE:
+            return "AI libraries not available"
+
+        lines = [
+            "KARACHI MARKET COMPARISON",
+            "=" * 50,
+            "",
+        ]
+
+        comparisons = []
+        for area in areas:
+            analytics = self.get_area_analytics(area)
+            if "error" not in analytics:
+                rent_count = analytics["rental"]["active_listings"]
+                sale_count = analytics["sale"]["active_listings"]
+                total_listings = rent_count + sale_count
+                demand = analytics["rental"]["demand"] + analytics["sale"]["demand"]
+
+                comparisons.append({
+                    "area": area,
+                    "listings": total_listings,
+                    "demand": demand,
+                    "condition": analytics["market_condition"],
+                    "avg_rent": analytics["rental"]["average_rent"],
+                    "avg_price": analytics["sale"]["average_price"],
+                })
+
+        if not comparisons:
+            return "No data available for comparison"
+
+        # Sort by total activity (listings + demand)
+        comparisons.sort(key=lambda x: x["listings"] + x["demand"], reverse=True)
+
+        lines.append(f"{'Area':<25} {'Listings':<10} {'Demand':<10} {'Condition':<15}")
+        lines.append("-" * 60)
+
+        for comp in comparisons:
+            lines.append(
+                f"{comp['area']:<25} {comp['listings']:<10} {comp['demand']:<10} {comp['condition']:<15}"
+            )
+
+        lines.append("")
+        lines.append("Investment Recommendation:")
+        lines.append("-" * 30)
+
+        # Find best area
+        if comparisons:
+            best = comparisons[0]
+            lines.append(f"Most Active: {best['area']} ({best['listings']} listings)")
+
+            # Find best rental yield potential
+            rent_areas = [(c["area"], c["avg_rent"]) for c in comparisons if c["avg_rent"] != "Rs.0"]
+            if rent_areas:
+                lines.append(f"Highest Rent: {rent_areas[0][0]} ({rent_areas[0][1]}/month)")
+
+        return "\n".join(lines)
+
+    def get_investment_roi(self, area: str, property_type: str) -> str:
+        """Calculate estimated ROI for a property type in an area.
+
+        Args:
+            area: Location name
+            property_type: Type of property (e.g., "Flat", "House")
+
+        Returns:
+            ROI estimate and recommendation
+        """
+        analytics = self.get_area_analytics(area)
+
+        if "error" in analytics:
+            return "Unable to calculate ROI - insufficient data"
+
+        # Extract numeric values
+        avg_rent_str = analytics["rental"]["average_rent"]
+        avg_rent = self._to_float(avg_rent_str)
+
+        avg_price_str = analytics["sale"]["average_price"]
+        avg_price = self._to_float(avg_price_str)
+
+        if avg_rent == 0 or avg_price == 0:
+            return f"Insufficient data for {property_type} in {area}"
+
+        # Estimate annual rent
+        annual_rent = avg_rent * 12
+
+        # Calculate gross ROI (simplified - doesn't account for maintenance, taxes, etc.)
+        gross_roi = (annual_rent / avg_price) * 100 if avg_price > 0 else 0
+
+        # Estimate net ROI (assuming 40% expenses)
+        net_roi = gross_roi * 0.6
+
+        lines = [
+            f"Investment Analysis: {property_type} in {area}",
+            "=" * 50,
+            f"Average Rent: {avg_rent_str}/month",
+            f"Average Price: {avg_price_str}",
+            f"Annual Rent: {self._money(annual_rent)}",
+            "",
+            f"Gross ROI: {gross_roi:.1f}%",
+            f"Net ROI (est.): {net_roi:.1f}%",
+            "",
+        ]
+
+        if net_roi >= 6:
+            lines.append("Rating: EXCELLENT - Strong rental yield")
+        elif net_roi >= 4:
+            lines.append("Rating: GOOD - Decent rental yield")
+        elif net_roi >= 2:
+            lines.append("Rating: FAIR - Moderate yield, consider capital appreciation")
+        else:
+            lines.append("Rating: LOW - Limited rental yield")
+
+        lines.append("")
+        lines.append("Note: Actual ROI may vary based on property condition, ")
+        lines.append("maintenance costs, vacancy periods, and market changes.")
+
+        return "\n".join(lines)
+
+    def get_karachi_market_snapshot(self) -> str:
+        """Generate a quick snapshot of Karachi real estate market.
+
+        Returns:
+            Formatted market snapshot report
+        """
+        if not AI_LIBS_AVAILABLE:
+            return "AI libraries not available"
+
+        frames = self._load_frames()
+
+        # Overall counts
+        total_rent_req = len(frames.get("rent_requirements", pd.DataFrame()))
+        total_rent_av = len(frames.get("rent_availability", pd.DataFrame()))
+        total_sale_req = len(frames.get("sale_requirements", pd.DataFrame()))
+        total_sale_av = len(frames.get("sale_availability", pd.DataFrame()))
+
+        # Rent price range
+        rent_prices = self._numeric(frames.get("rent_availability", pd.DataFrame()).get("monthly_rent", pd.Series()))
+        rent_prices = rent_prices[rent_prices > 0]
+        rent_min = float(rent_prices.min()) if len(rent_prices) > 0 else 0
+        rent_max = float(rent_prices.max()) if len(rent_prices) > 0 else 0
+
+        # Sale price range
+        sale_prices = self._numeric(frames.get("sale_availability", pd.DataFrame()).get("demand", pd.Series()))
+        sale_prices = sale_prices[sale_prices > 0]
+        sale_min = float(sale_prices.min()) if len(sale_prices) > 0 else 0
+        sale_max = float(sale_prices.max()) if len(sale_prices) > 0 else 0
+
+        lines = [
+            "KARACHI REAL ESTATE MARKET SNAPSHOT",
+            "=" * 50,
+            "",
+            "Your Portfolio:",
+            f"  Rent Requirements: {total_rent_req}",
+            f"  Rent Available: {total_rent_av}",
+            f"  Sale Requirements: {total_sale_req}",
+            f"  Sale Available: {total_sale_av}",
+            "",
+            "Price Ranges in Your Database:",
+            f"  Rent: {self._money(rent_min)} - {self._money(rent_max)}/month",
+            f"  Sale: {self._money(sale_min)} - {self._money(sale_max)}",
+            "",
+            "Demand/Supply Balance:",
+        ]
+
+        # Rent balance
+        if total_rent_av > 0:
+            rent_balance = total_rent_req / total_rent_av
+            if rent_balance > 1.5:
+                lines.append(f"  Rent: HIGH DEMAND (1:{rent_balance:.1f} ratio)")
+            elif rent_balance < 0.7:
+                lines.append(f"  Rent: HIGH SUPPLY (1:{rent_balance:.1f} ratio)")
+            else:
+                lines.append(f"  Rent: BALANCED (1:{rent_balance:.1f} ratio)")
+
+        # Sale balance
+        if total_sale_av > 0:
+            sale_balance = total_sale_req / total_sale_av
+            if sale_balance > 1.5:
+                lines.append(f"  Sale: HIGH DEMAND (1:{sale_balance:.1f} ratio)")
+            elif sale_balance < 0.7:
+                lines.append(f"  Sale: HIGH SUPPLY (1:{sale_balance:.1f} ratio)")
+            else:
+                lines.append(f"  Sale: BALANCED (1:{sale_balance:.1f} ratio)")
+
+        lines.append("")
+        lines.append("Market Status: READY FOR ANALYSIS")
+        lines.append("Use get_area_analytics() for detailed area reports")
+
+        return "\n".join(lines)

@@ -883,7 +883,9 @@ class ReportService:
         if not text:
             return None
         text = text.split("T", 1)[0].split(" ", 1)[0]
-        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+        # Bug 3.8 fix: try DD/MM/YYYY first (display format) before ISO format
+        # This ensures date range filtering works for both storage and display formats
+        for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%Y/%m/%d"):
             try:
                 return datetime.strptime(text, fmt).date()
             except ValueError:

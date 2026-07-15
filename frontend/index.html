@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Real Estate CRM</title>
-<link rel="stylesheet" href="styles.css?v=2026060903">
+<link rel="stylesheet" href="styles.css?v=2026071401">
 </head>
 <body>
 <div id="app">
@@ -30,86 +30,86 @@
   <div id="main-screen" class="screen hidden">
     <!-- Top Menu Bar -->
     <div id="top-menu-bar">
-      <div class="menu-item" data-menu="file">
+      <div class="menu-item" data-menu="file" onclick="toggleMenu(event, 'file')">
         File
         <div class="menu-dropdown" id="menu-file">
-          <div class="menu-dropdown-item" data-action="new">New Record</div>
-          <div class="menu-dropdown-item" data-action="edit">Edit</div>
-          <div class="menu-dropdown-item" data-action="delete">Delete</div>
-          <div class="menu-dropdown-item separator" data-action="import">Import</div>
-          <div class="menu-dropdown-item" data-action="export">Export</div>
-          <div class="menu-dropdown-item separator" data-action="print">Print</div>
-          <div class="menu-dropdown-item" data-action="exit">Exit</div>
+          <div class="menu-dropdown-item" data-action="new" onclick="menuAction(event, 'new')">New Record</div>
+          <div class="menu-dropdown-item" data-action="edit" onclick="menuAction(event, 'edit')">Edit</div>
+          <div class="menu-dropdown-item" data-action="delete" onclick="menuAction(event, 'delete')">Delete</div>
+          <div class="menu-dropdown-item separator" data-action="import" onclick="menuAction(event, 'import')">Import</div>
+          <div class="menu-dropdown-item" data-action="export" onclick="menuAction(event, 'export')">Export</div>
+          <div class="menu-dropdown-item separator" data-action="print" onclick="menuAction(event, 'print')">Print</div>
+          <div class="menu-dropdown-item" data-action="exit" onclick="menuAction(event, 'exit')">Exit</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="view">
+      <div class="menu-item" data-menu="view" onclick="toggleMenu(event, 'view')">
         View
         <div class="menu-dropdown" id="menu-view">
-          <div class="menu-dropdown-item" data-action="toggle-sidebar">Toggle Sidebar</div>
-          <div class="menu-dropdown-item separator" data-action="dashboard">Dashboard</div>
-          <div class="menu-dropdown-item" data-action="refresh">Refresh</div>
+          <div class="menu-dropdown-item" data-action="toggle-sidebar" onclick="menuAction(event, 'toggle-sidebar')">Toggle Sidebar</div>
+          <div class="menu-dropdown-item separator" data-action="dashboard" onclick="menuAction(event, 'dashboard')">Dashboard</div>
+          <div class="menu-dropdown-item" data-action="refresh" onclick="menuAction(event, 'refresh')">Refresh</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="dealings">
+      <div class="menu-item" data-menu="dealings" onclick="toggleMenu(event, 'dealings')">
         Dealings
         <div class="menu-dropdown" id="menu-dealings">
-          <div class="menu-dropdown-item" data-action="rent-requirements">Rent Requirements</div>
-          <div class="menu-dropdown-item" data-action="rent-availability">Rent Availability</div>
-          <div class="menu-dropdown-item separator" data-action="sale-requirements">Sale Requirements</div>
-          <div class="menu-dropdown-item" data-action="sale-availability">Sale Availability</div>
-          <div class="menu-dropdown-item separator" data-action="rent-dealings">Rent Dealings</div>
-          <div class="menu-dropdown-item" data-action="sale-dealings">Sale Dealings</div>
+          <div class="menu-dropdown-item" data-action="rent-requirements" onclick="menuAction(event, 'rent-requirements')">Rent Requirements</div>
+          <div class="menu-dropdown-item" data-action="rent-availability" onclick="menuAction(event, 'rent-availability')">Rent Availability</div>
+          <div class="menu-dropdown-item separator" data-action="sale-requirements" onclick="menuAction(event, 'sale-requirements')">Sale Requirements</div>
+          <div class="menu-dropdown-item" data-action="sale-availability" onclick="menuAction(event, 'sale-availability')">Sale Availability</div>
+          <div class="menu-dropdown-item separator" data-action="rent-dealings" onclick="menuAction(event, 'rent-dealings')">Rent Dealings</div>
+          <div class="menu-dropdown-item" data-action="sale-dealings" onclick="menuAction(event, 'sale-dealings')">Sale Dealings</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="records">
+      <div class="menu-item" data-menu="records" onclick="toggleMenu(event, 'records')">
         Records
         <div class="menu-dropdown" id="menu-records">
-          <div class="menu-dropdown-item" data-action="properties">Properties</div>
-          <div class="menu-dropdown-item" data-action="clients">Clients</div>
-          <div class="menu-dropdown-item" data-action="brokers">Broker Contacts</div>
-          <div class="menu-dropdown-item separator" data-action="employees">Employees</div>
-          <div class="menu-dropdown-item" data-action="financial">Financial</div>
+          <div class="menu-dropdown-item" data-action="properties" onclick="menuAction(event, 'properties')">Properties</div>
+          <div class="menu-dropdown-item" data-action="clients" onclick="menuAction(event, 'clients')">Clients</div>
+          <div class="menu-dropdown-item" data-action="brokers" onclick="menuAction(event, 'brokers')">Broker Contacts</div>
+          <div class="menu-dropdown-item separator" data-action="employees" onclick="menuAction(event, 'employees')">Employees</div>
+          <div class="menu-dropdown-item" data-action="financial" onclick="menuAction(event, 'financial')">Financial</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="reports">
+      <div class="menu-item" data-menu="reports" onclick="toggleMenu(event, 'reports')">
         Reports
         <div class="menu-dropdown" id="menu-reports">
-          <div class="menu-dropdown-item" data-action="all-reports">All Reports</div>
-          <div class="menu-dropdown-item" data-action="summary">Summary</div>
-          <div class="menu-dropdown-item separator" data-action="export-reports">Export Reports</div>
+          <div class="menu-dropdown-item" data-action="all-reports" onclick="menuAction(event, 'all-reports')">All Reports</div>
+          <div class="menu-dropdown-item" data-action="summary" onclick="menuAction(event, 'summary')">Summary</div>
+          <div class="menu-dropdown-item separator" data-action="export-reports" onclick="menuAction(event, 'export-reports')">Export Reports</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="success">
+      <div class="menu-item" data-menu="success" onclick="toggleMenu(event, 'success')">
         SuccessFactors
         <div class="menu-dropdown" id="menu-success">
-          <div class="menu-dropdown-item" data-action="employees-sf">Employees</div>
-          <div class="menu-dropdown-item" data-action="recruiting">Recruiting</div>
-          <div class="menu-dropdown-item" data-action="performance">Performance</div>
-          <div class="menu-dropdown-item" data-action="compensation">Compensation</div>
+          <div class="menu-dropdown-item" data-action="employees-sf" onclick="menuAction(event, 'employees-sf')">Employees</div>
+          <div class="menu-dropdown-item" data-action="recruiting" onclick="menuAction(event, 'recruiting')">Recruiting</div>
+          <div class="menu-dropdown-item" data-action="performance" onclick="menuAction(event, 'performance')">Performance</div>
+          <div class="menu-dropdown-item" data-action="compensation" onclick="menuAction(event, 'compensation')">Compensation</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="workflow">
+      <div class="menu-item" data-menu="workflow" onclick="toggleMenu(event, 'workflow')">
         Workflow
         <div class="menu-dropdown" id="menu-workflow">
-          <div class="menu-dropdown-item" data-action="approvals">Approvals</div>
-          <div class="menu-dropdown-item" data-action="tasks">Tasks</div>
-          <div class="menu-dropdown-item" data-action="audit">Audit Trail</div>
+          <div class="menu-dropdown-item" data-action="approvals" onclick="menuAction(event, 'approvals')">Approvals</div>
+          <div class="menu-dropdown-item" data-action="tasks" onclick="menuAction(event, 'tasks')">Tasks</div>
+          <div class="menu-dropdown-item" data-action="audit" onclick="menuAction(event, 'audit')">Audit Trail</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="tools">
+      <div class="menu-item" data-menu="tools" onclick="toggleMenu(event, 'tools')">
         Tools
         <div class="menu-dropdown" id="menu-tools">
-          <div class="menu-dropdown-item" data-action="find">Find</div>
-          <div class="menu-dropdown-item" data-action="match">Match</div>
-          <div class="menu-dropdown-item separator" data-action="backup">Backup</div>
-          <div class="menu-dropdown-item" data-action="settings">Settings</div>
+          <div class="menu-dropdown-item" data-action="find" onclick="menuAction(event, 'find')">Find</div>
+          <div class="menu-dropdown-item" data-action="match" onclick="menuAction(event, 'match')">Match</div>
+          <div class="menu-dropdown-item separator" data-action="backup" onclick="menuAction(event, 'backup')">Backup</div>
+          <div class="menu-dropdown-item" data-action="settings" onclick="menuAction(event, 'settings')">Settings</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="help">
+      <div class="menu-item" data-menu="help" onclick="toggleMenu(event, 'help')">
         Help
         <div class="menu-dropdown" id="menu-help">
-          <div class="menu-dropdown-item" data-action="documentation">Documentation</div>
-          <div class="menu-dropdown-item" data-action="about">About</div>
+          <div class="menu-dropdown-item" data-action="documentation" onclick="menuAction(event, 'documentation')">Documentation</div>
+          <div class="menu-dropdown-item" data-action="about" onclick="menuAction(event, 'about')">About</div>
         </div>
       </div>
     </div>
@@ -449,6 +449,6 @@
   </div>
 </div>
 
-  <script src="app.js?v=2026060903"></script>
+  <script src="app.js?v=2026071401"></script>
 </body>
 </html>

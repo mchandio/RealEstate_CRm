@@ -580,7 +580,7 @@ textarea {
 
 /* Tables */
 .table-container {
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
   margin-bottom: 16px;
   border-radius: 0 0 8px 8px;
@@ -590,10 +590,24 @@ textarea {
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
   max-height: calc(100vh - 190px);
 }
+
+.table-container table {
+  min-width: 100%;
+  width: auto;
+}
+
+.data-grid-container {
+  overflow-x: auto;
+}
+
+.data-grid-container table {
+  min-width: 100%;
+  width: auto;
+}
 table {
-  width: 100%;
-  min-width: 0;
-  table-layout: fixed;
+  min-width: 100%;
+  width: auto;
+  table-layout: auto;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.8rem;
@@ -606,7 +620,8 @@ th {
   color: #1f3350;
   white-space: normal;
   overflow-wrap: anywhere;
-  line-height: 1.18;
+  word-break: break-word;
+  line-height: 1.3;
   border-bottom: 1px solid var(--line-strong);
 }
 .select-col {
@@ -626,7 +641,9 @@ td {
   text-overflow: clip;
   white-space: normal;
   overflow-wrap: anywhere;
-  line-height: 1.26;
+  word-break: break-word;
+  line-height: 1.45;
+  min-height: 36px;
 }
 tbody tr:nth-child(even) td { background: #f7f7f7; }
 tr:hover td { background: #eef5ff; }
@@ -1027,18 +1044,9 @@ td.actions button { padding: 5px 9px; font-size: 0.75rem; }
   }
   
   .table-container {
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: auto;
   }
-  
-  table {
-    min-width: 0;
-  }
-  
-  .find-panel {
-    flex-direction: column;
-  }
-  
   .find-panel .field {
     width: 100%;
   }
@@ -1188,16 +1196,16 @@ td.actions button { padding: 5px 9px; font-size: 0.75rem; }
 .data-grid-container {
   border: 1px solid var(--line);
   border-radius: 0 0 8px 8px;
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
   background: #fff;
   max-height: calc(100vh - 300px);
 }
 
 .data-grid {
-  width: 100%;
-  min-width: 0;
-  table-layout: fixed;
+  min-width: 100%;
+  width: auto;
+  table-layout: auto;
   border-collapse: collapse;
   font-size: 0.78rem;
 }
@@ -1211,16 +1219,20 @@ td.actions button { padding: 5px 9px; font-size: 0.75rem; }
   border-bottom: 2px solid var(--line);
   white-space: normal;
   overflow-wrap: anywhere;
-  line-height: 1.16;
+  word-break: break-word;
+  line-height: 1.3;
 }
 
 .data-grid td {
   padding: 8px 7px;
   border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
   color: var(--text);
   white-space: normal;
   overflow-wrap: anywhere;
-  line-height: 1.25;
+  word-break: break-word;
+  line-height: 1.45;
+  min-height: 36px;
 }
 
 .data-grid tbody tr:hover {
@@ -2005,25 +2017,16 @@ input[type="checkbox"] {
   border-radius: 0 0 var(--radius) var(--radius);
   background: var(--panel);
   box-shadow: var(--shadow-soft);
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
-}
-
-.data-grid-container {
-  max-height: calc(100vh - 282px);
 }
 
 .table-container {
   max-height: calc(100vh - 250px);
 }
 
-table,
-.data-grid {
-  border-collapse: separate;
-  border-spacing: 0;
-  width: 100%;
-  min-width: 0;
-  table-layout: fixed;
+  table {
+  table-layout: auto;
   font-size: 0.78rem;
 }
 
@@ -2041,17 +2044,21 @@ th,
   text-transform: uppercase;
   white-space: normal;
   overflow-wrap: anywhere;
-  line-height: 1.16;
+  word-break: break-word;
+  line-height: 1.3;
 }
 
 td,
 .data-grid td {
   padding: 8px 7px;
   border-top: 1px solid #e5ecef;
+  vertical-align: top;
   color: #263642;
   white-space: normal;
   overflow-wrap: anywhere;
-  line-height: 1.25;
+  word-break: break-word;
+  line-height: 1.45;
+  min-height: 36px;
 }
 
 tbody tr:nth-child(even) td,
@@ -3079,7 +3086,7 @@ td.actions button {
   .table-container,
   .data-grid-container {
     max-height: 58vh;
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: auto;
   }
 

@@ -8,7 +8,7 @@ import sys
 import json
 import socket
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 import csv
 import random
 import string
@@ -28,13 +28,6 @@ try:
     FPDF_AVAILABLE = True
 except ImportError:
     FPDF_AVAILABLE = False
-
-from crm_core.reports import (
-    ReportService,
-    export_report_csv,
-    export_report_pdf,
-    export_report_text,
-)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONSTANTS & CONFIG
@@ -160,7 +153,7 @@ DEAL_TABLES = (
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DATABASE
+# DATABASE Management $ determinations for the here lief coding and property
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class Database:
@@ -207,8 +200,6 @@ class Database:
             Database._ensure_columns(conn, "rent_requirements", [
                 ("date", "TEXT", None),
                 ("client_name", "TEXT", None),
-                ("client_status", "TEXT", "'Client'"),
-                ("broker", "TEXT", None),
                 ("contact", "TEXT", None),
                 ("size", "TEXT", None),
                 ("sq_ft_yards", "TEXT", None),
@@ -344,8 +335,6 @@ class Database:
             Database._ensure_columns(conn, "sale_requirements", [
                 ("date", "TEXT", None),
                 ("client_name", "TEXT", None),
-                ("client_status", "TEXT", "'Client'"),
-                ("broker", "TEXT", None),
                 ("contact", "TEXT", None),
                 ("property_requires", "TEXT", None),
                 ("size", "TEXT", None),
@@ -407,13 +396,6 @@ class Database:
             # Backfill: copy legacy transaction_date -> date when needed
             cur = conn.cursor()
             rr_cols = Database._table_columns(conn, "rent_requirements")
-            if "client_status" in rr_cols:
-                cur.execute("UPDATE rent_requirements SET client_status='Client' WHERE client_status IS NULL OR client_status=''")
-            if "broker" in rr_cols and "client_broker" in rr_cols:
-                cur.execute("""UPDATE rent_requirements
-                               SET broker=client_broker
-                               WHERE (broker IS NULL OR broker='')
-                                 AND client_broker IS NOT NULL AND client_broker<>''""")
             if "workflow_stage" in rr_cols:
                 cur.execute("UPDATE rent_requirements SET workflow_stage='Lead' WHERE workflow_stage IS NULL OR workflow_stage=''")
             if "priority" in rr_cols:
@@ -449,10 +431,9 @@ class Database:
                 cur.execute("""UPDATE rent_requirements
                                SET budget=budget_max
                                WHERE budget IS NULL AND budget_max IS NOT NULL""")
-            rr_value_cols = [col for col in ("budget", "budget_max") if col in rr_cols]
-            if "expected_close_value" in rr_cols and rr_value_cols:
-                cur.execute(f"""UPDATE rent_requirements
-                               SET expected_close_value=COALESCE({', '.join(rr_value_cols)}, 0)
+            if "expected_close_value" in rr_cols and "budget" in rr_cols:
+                cur.execute("""UPDATE rent_requirements
+                               SET expected_close_value=COALESCE(budget, budget_max, 0)
                                WHERE expected_close_value IS NULL OR expected_close_value=0""")
             if "remarks" in rr_cols and "notes" in rr_cols:
                 cur.execute("""UPDATE rent_requirements
@@ -502,13 +483,6 @@ class Database:
                                  AND notes IS NOT NULL""")
 
             sr_cols = Database._table_columns(conn, "sale_requirements")
-            if "client_status" in sr_cols:
-                cur.execute("UPDATE sale_requirements SET client_status='Client' WHERE client_status IS NULL OR client_status=''")
-            if "broker" in sr_cols and "client_broker" in sr_cols:
-                cur.execute("""UPDATE sale_requirements
-                               SET broker=client_broker
-                               WHERE (broker IS NULL OR broker='')
-                                 AND client_broker IS NOT NULL AND client_broker<>''""")
             if "workflow_stage" in sr_cols:
                 cur.execute("UPDATE sale_requirements SET workflow_stage='Lead' WHERE workflow_stage IS NULL OR workflow_stage=''")
             if "priority" in sr_cols:
@@ -536,10 +510,9 @@ class Database:
                 cur.execute("""UPDATE sale_requirements
                                SET budget=budget_max
                                WHERE budget IS NULL AND budget_max IS NOT NULL""")
-            sr_value_cols = [col for col in ("budget", "budget_max") if col in sr_cols]
-            if "expected_close_value" in sr_cols and sr_value_cols:
-                cur.execute(f"""UPDATE sale_requirements
-                               SET expected_close_value=COALESCE({', '.join(sr_value_cols)}, 0)
+            if "expected_close_value" in sr_cols and "budget" in sr_cols:
+                cur.execute("""UPDATE sale_requirements
+                               SET expected_close_value=COALESCE(budget, budget_max, 0)
                                WHERE expected_close_value IS NULL OR expected_close_value=0""")
 
             sa_cols = Database._table_columns(conn, "sale_availability")
@@ -570,10 +543,9 @@ class Database:
                 cur.execute("""UPDATE sale_availability
                                SET demand=asking_price
                                WHERE demand IS NULL AND asking_price IS NOT NULL""")
-            sa_value_cols = [col for col in ("demand", "asking_price") if col in sa_cols]
-            if "expected_close_value" in sa_cols and sa_value_cols:
-                cur.execute(f"""UPDATE sale_availability
-                               SET expected_close_value=COALESCE({', '.join(sa_value_cols)}, 0)
+            if "expected_close_value" in sa_cols and "demand" in sa_cols:
+                cur.execute("""UPDATE sale_availability
+                               SET expected_close_value=COALESCE(demand, asking_price, 0)
                                WHERE expected_close_value IS NULL OR expected_close_value=0""")
 
             conn.commit()
@@ -636,10 +608,7 @@ class Database:
         c.execute('''CREATE TABLE IF NOT EXISTS rent_requirements
                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
                       date TEXT,
-                      client_name TEXT,
-                      client_status TEXT DEFAULT 'Client',
-                      broker TEXT,
-                      contact TEXT,
+                      client_name TEXT, contact TEXT,
                       property_requires TEXT,
                       size TEXT, measurement TEXT,
                       budget REAL,
@@ -705,10 +674,7 @@ class Database:
         c.execute('''CREATE TABLE IF NOT EXISTS sale_requirements
                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
                       date TEXT,
-                      client_name TEXT,
-                      client_status TEXT DEFAULT 'Client',
-                      broker TEXT,
-                      contact TEXT,
+                      client_name TEXT, contact TEXT,
                       property_requires TEXT,
                       size TEXT, measurement TEXT,
                       budget REAL,
@@ -918,7 +884,7 @@ ROLE_PERMISSIONS = {
     'Super Admin': ['dashboard','rent','financial','employees','reports','settings','users','backup','delete'],
     'Admin':       ['dashboard','rent','financial','employees','reports','settings','users','backup','delete'],
     'Manager':     ['dashboard','rent','financial_view','employees','reports'],
-    'Staff':       ['rent'],
+    'Staff':       ['dashboard','rent','employees_view'],
     'Viewer':      ['dashboard','rent_view','employees_view','reports'],
 }
 
@@ -1097,106 +1063,9 @@ class LoginWindow:
 def safe_float(val, default=0.0):
     """FIX: safely convert a string to float, return default on failure."""
     try:
-        text = clean_number_text(val)
-        return float(text) if text else default
+        return float(str(val).replace(',', '').strip()) if val else default
     except (ValueError, TypeError):
         return default
-
-
-NUMERIC_FORM_KEYS = {
-    'amount', 'area', 'base_salary', 'bonus', 'budget', 'commission_rate',
-    'default_commission', 'deal_probability',
-    'deductions', 'demand', 'deposit', 'maintenance_charge',
-    'expected_close_value', 'monthly_rent', 'net_salary', 'sale_price',
-    'tax_rate',
-}
-
-DATE_FORM_KEYS = {'date', 'transaction_date', 'hire_date', 'next_follow_up'}
-EMAIL_FORM_KEYS = {'email', 'company_email'}
-PHONE_FORM_KEYS = {'contact', 'phone', 'owner_contact', 'company_phone'}
-CNIC_FORM_KEYS = {'cnic'}
-PERCENT_FORM_KEYS = {'commission_rate', 'deal_probability', 'default_commission', 'tax_rate'}
-
-
-def clean_number_text(val):
-    text = str(val or '').strip()
-    if not text:
-        return ''
-    for token in ('PKR', 'Pkr', 'pkr', 'Rs.', 'Rs', 'rs.', 'rs', '$'):
-        text = text.replace(token, '')
-    return text.replace(',', '').strip()
-
-
-def is_valid_number_text(val):
-    text = clean_number_text(val)
-    if not text:
-        return True
-    try:
-        float(text)
-        return True
-    except (TypeError, ValueError):
-        return False
-
-
-def is_valid_date_text(val):
-    text = str(val or '').strip()
-    if not text:
-        return True
-    try:
-        datetime.strptime(text, "%Y-%m-%d")
-        return True
-    except ValueError:
-        return False
-
-
-def is_valid_email_text(val):
-    text = str(val or '').strip()
-    if not text:
-        return True
-    if ' ' in text or text.count('@') != 1:
-        return False
-    local, domain = text.split('@', 1)
-    return bool(local) and '.' in domain and not domain.startswith('.') and not domain.endswith('.')
-
-
-def is_valid_phone_text(val):
-    text = str(val or '').strip()
-    if not text:
-        return True
-    allowed = set("0123456789+-() ")
-    digits = ''.join(ch for ch in text if ch.isdigit())
-    return all(ch in allowed for ch in text) and 7 <= len(digits) <= 15
-
-
-def is_valid_cnic_text(val):
-    text = str(val or '').strip()
-    if not text:
-        return True
-    digits = ''.join(ch for ch in text if ch.isdigit())
-    return len(digits) == 13 and all(ch.isdigit() or ch == '-' for ch in text)
-
-
-def validate_form_value(key, label, value, *, required=False, numeric=False,
-                        options=None, strict_options=False):
-    text = str(value or '').strip()
-    if required and not text:
-        raise ValueError(f"Please enter {label}.")
-    if numeric and text and not is_valid_number_text(text):
-        raise ValueError(f"Please enter a valid number for {label}.")
-    if key in DATE_FORM_KEYS and text and not is_valid_date_text(text):
-        raise ValueError(f"{label} must be in YYYY-MM-DD format.")
-    if key in EMAIL_FORM_KEYS and text and not is_valid_email_text(text):
-        raise ValueError(f"Please enter a valid email address for {label}.")
-    if key in PHONE_FORM_KEYS and text and not is_valid_phone_text(text):
-        raise ValueError(f"Please enter a valid phone/contact number for {label}.")
-    if key in CNIC_FORM_KEYS and text and not is_valid_cnic_text(text):
-        raise ValueError(f"{label} must contain exactly 13 digits.")
-    if key in PERCENT_FORM_KEYS and text and is_valid_number_text(text):
-        number = safe_float(text)
-        if number < 0 or number > 100:
-            raise ValueError(f"{label} must be between 0 and 100.")
-    if strict_options and text and options and text not in options:
-        raise ValueError(f"Please select a valid option for {label}.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1248,308 +1117,6 @@ class AutocompleteCombobox(ttk.Combobox):
             self._focus_out_skip = False
             return
         self.set_completion_list(self._completion_list)
-
-
-class TreeCellTooltip:
-    """Show full Treeview cell text when a value is wider than its column."""
-
-    def __init__(self, tree):
-        self.tree = tree
-        self.tip = None
-        self.active_cell = None
-        self.font = tkfont.Font(family="Segoe UI", size=10)
-        tree.bind('<Motion>', self._on_motion, add='+')
-        tree.bind('<Leave>', self._hide, add='+')
-        tree.bind('<ButtonPress>', self._hide, add='+')
-        tree.bind('<MouseWheel>', self._hide, add='+')
-
-    def _on_motion(self, event):
-        region = self.tree.identify_region(event.x, event.y)
-        if region != 'cell':
-            self._hide()
-            return
-        row_id = self.tree.identify_row(event.y)
-        col_id = self.tree.identify_column(event.x)
-        if not row_id or not col_id.startswith('#'):
-            self._hide()
-            return
-        try:
-            col_index = int(col_id[1:]) - 1
-            col_name = list(self.tree['columns'])[col_index]
-        except (ValueError, IndexError):
-            self._hide()
-            return
-        text = str(self.tree.set(row_id, col_name) or '').strip()
-        col_width = int(self.tree.column(col_name, 'width') or 0)
-        if not text or (len(text) <= 18 and self.font.measure(text) <= max(40, col_width - 18)):
-            self._hide()
-            return
-        cell = (row_id, col_name, text)
-        if cell != self.active_cell:
-            self._show(text, event.x_root + 16, event.y_root + 18)
-            self.active_cell = cell
-        elif self.tip:
-            self.tip.geometry(f"+{event.x_root + 16}+{event.y_root + 18}")
-
-    def _show(self, text, x, y):
-        self._hide()
-        self.tip = tk.Toplevel(self.tree)
-        self.tip.wm_overrideredirect(True)
-        self.tip.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(
-            self.tip,
-            text=text,
-            justify='left',
-            wraplength=520,
-            bg='#111827',
-            fg='white',
-            relief='solid',
-            bd=1,
-            padx=10,
-            pady=7,
-            font=('Segoe UI', 9)
-        )
-        label.pack()
-
-    def _hide(self, event=None):
-        self.active_cell = None
-        if self.tip:
-            try:
-                self.tip.destroy()
-            except Exception:
-                pass
-            self.tip = None
-
-
-class TreeCellSelector:
-    """Visual cell selection for ttk.Treeview while preserving row-based actions."""
-
-    def __init__(self, tree):
-        self.tree = tree
-        self.label = tk.Label(
-            tree,
-            bg=COLORS['primary'],
-            fg='white',
-            anchor='w',
-            padx=6,
-            font=('Segoe UI', 10),
-            bd=0,
-            highlightthickness=1,
-            highlightbackground=COLORS['primary_dk'],
-        )
-        self.label.place_forget()
-        tree._active_cell = None
-        tree.bind('<ButtonRelease-1>', self._on_click, add='+')
-        tree.bind('<Up>', self._on_key_nav, add='+')
-        tree.bind('<Down>', self._on_key_nav, add='+')
-        tree.bind('<Left>', self._on_key_nav, add='+')
-        tree.bind('<Right>', self._on_key_nav, add='+')
-        tree.bind('<Tab>', self._on_key_nav, add='+')
-        tree.bind('<Shift-Tab>', self._on_key_nav, add='+')
-        tree.bind('<ISO_Left_Tab>', self._on_key_nav, add='+')
-        tree.bind('<Home>', self._on_key_nav, add='+')
-        tree.bind('<End>', self._on_key_nav, add='+')
-        tree.bind('<Prior>', self._on_key_nav, add='+')
-        tree.bind('<Next>', self._on_key_nav, add='+')
-        tree.bind('<Control-Home>', self._on_key_nav, add='+')
-        tree.bind('<Control-End>', self._on_key_nav, add='+')
-        tree.bind('<Configure>', lambda _e: self.refresh_later(), add='+')
-        tree.bind('<MouseWheel>', lambda _e: self.refresh_later(), add='+')
-        tree.bind('<Button-4>', lambda _e: self.refresh_later(), add='+')
-        tree.bind('<Button-5>', lambda _e: self.refresh_later(), add='+')
-
-    def _on_click(self, event):
-        if self.tree.identify_region(event.x, event.y) != 'cell':
-            self.clear()
-            return
-        row_id = self.tree.identify_row(event.y)
-        col_id = self.tree.identify_column(event.x)
-        if not row_id or not col_id.startswith('#'):
-            self.clear()
-            return
-        try:
-            col_index = int(col_id[1:]) - 1
-            col_name = list(self.tree['columns'])[col_index]
-        except (ValueError, IndexError):
-            self.clear()
-            return
-        self.select(row_id, col_name)
-
-    def _on_key_nav(self, event):
-        rows = list(self.tree.get_children(''))
-        cols = self._display_columns()
-        if not rows or not cols:
-            return 'break'
-
-        active = getattr(self.tree, '_active_cell', None)
-        row_id = active[0] if active and self.tree.exists(active[0]) else self.tree.focus()
-        if not row_id:
-            selection = self.tree.selection()
-            row_id = selection[0] if selection else rows[0]
-        col_name = active[1] if active and active[1] in cols else cols[0]
-
-        row_idx = rows.index(row_id) if row_id in rows else 0
-        col_idx = cols.index(col_name) if col_name in cols else 0
-        key = event.keysym
-        shift_tab = key == 'ISO_Left_Tab' or (key == 'Tab' and bool(event.state & 0x0001))
-
-        if key == 'Up':
-            row_idx = max(0, row_idx - 1)
-        elif key == 'Down':
-            row_idx = min(len(rows) - 1, row_idx + 1)
-        elif key == 'Left':
-            col_idx = max(0, col_idx - 1)
-        elif key == 'Right':
-            col_idx = min(len(cols) - 1, col_idx + 1)
-        elif key == 'Tab' and not shift_tab:
-            if col_idx < len(cols) - 1:
-                col_idx += 1
-            elif row_idx < len(rows) - 1:
-                row_idx += 1
-                col_idx = 0
-        elif key in ('Tab', 'ISO_Left_Tab') and shift_tab:
-            if col_idx > 0:
-                col_idx -= 1
-            elif row_idx > 0:
-                row_idx -= 1
-                col_idx = len(cols) - 1
-        elif key == 'Home' and bool(event.state & 0x0004):
-            row_idx = 0
-            col_idx = 0
-        elif key == 'End' and bool(event.state & 0x0004):
-            row_idx = len(rows) - 1
-            col_idx = len(cols) - 1
-        elif key == 'Prior':
-            row_idx = max(0, row_idx - max(1, self._visible_row_count()))
-        elif key == 'Next':
-            row_idx = min(len(rows) - 1, row_idx + max(1, self._visible_row_count()))
-        elif key == 'Home':
-            col_idx = 0
-        elif key == 'End':
-            col_idx = len(cols) - 1
-
-        self.select(rows[row_idx], cols[col_idx], ensure_visible=True)
-        return 'break'
-
-    def select(self, row_id, col_name, ensure_visible=False):
-        if not row_id or not self.tree.exists(row_id):
-            self.clear()
-            return
-        self.tree._active_cell = (row_id, col_name)
-        try:
-            self.tree.focus_set()
-            self.tree.focus(row_id)
-            self.tree.selection_set(row_id)
-        except Exception:
-            pass
-        if ensure_visible:
-            self._ensure_visible(row_id, col_name)
-        self.render()
-
-    def render(self):
-        active = getattr(self.tree, '_active_cell', None)
-        if not active:
-            self.label.place_forget()
-            return
-        row_id, col_name = active
-        if not self.tree.exists(row_id):
-            self.clear()
-            return
-        text = str(self.tree.set(row_id, col_name) or '')
-        heading = self.tree.heading(col_name).get('text') or col_name
-        self.tree._active_cell_heading = heading
-        self.tree._active_cell_value = text
-        try:
-            bbox = self.tree.bbox(row_id, col_name)
-        except Exception:
-            bbox = ''
-        if not bbox:
-            self.label.place_forget()
-            return
-        x, y, width, height = bbox
-        self.label.configure(text=text, font=('Segoe UI', 10))
-        self.label.place(x=x + 1, y=y + 1, width=max(1, width - 2), height=max(1, height - 2))
-        self.label.lift()
-
-    def refresh_later(self):
-        self.tree.after_idle(self.render)
-
-    def _display_columns(self):
-        display = self.tree['displaycolumns']
-        if not display or display == ('#all',) or display == '#all':
-            return list(self.tree['columns'])
-        return [c for c in display if c in self.tree['columns']]
-
-    def _visible_row_count(self):
-        try:
-            height = max(1, self.tree.winfo_height())
-            rowheight = tkfont.Font(family="Segoe UI", size=10).metrics('linespace') + 14
-            return max(1, height // max(1, rowheight))
-        except Exception:
-            return 10
-
-    def _ensure_visible(self, row_id, col_name):
-        try:
-            self.tree.see(row_id)
-        except Exception:
-            pass
-        self._ensure_column_visible(col_name)
-        self.refresh_later()
-
-    def _ensure_column_visible(self, col_name):
-        cols = self._display_columns()
-        if col_name not in cols:
-            return
-        widths = []
-        for col in cols:
-            try:
-                widths.append(max(1, int(self.tree.column(col, 'width') or 1)))
-            except Exception:
-                widths.append(100)
-        total_width = max(1, sum(widths))
-        target_index = cols.index(col_name)
-        target_left = sum(widths[:target_index])
-        target_right = target_left + widths[target_index]
-        visible_width = max(1, self.tree.winfo_width() - 4)
-        try:
-            current_left = int(self.tree.xview()[0] * total_width)
-        except Exception:
-            current_left = 0
-        current_right = current_left + visible_width
-        if target_left < current_left:
-            self.tree.xview_moveto(max(0, target_left) / total_width)
-        elif target_right > current_right:
-            new_left = max(0, target_right - visible_width)
-            self.tree.xview_moveto(min(1, new_left / total_width))
-
-    def clear(self):
-        self.tree._active_cell = None
-        self.tree._active_cell_heading = ''
-        self.tree._active_cell_value = ''
-        self.label.place_forget()
-
-
-def enable_tree_cell_selection(tree, hscrollbar=None, vscrollbar=None):
-    if not hasattr(tree, '_cell_selector'):
-        tree._cell_selector = TreeCellSelector(tree)
-    if not hasattr(tree, '_cell_tooltip'):
-        tree._cell_tooltip = TreeCellTooltip(tree)
-
-    if vscrollbar is not None and not getattr(vscrollbar, '_cell_selection_wrapped', False):
-        def _yview(*args, tr=tree):
-            tr.yview(*args)
-            tr._cell_selector.refresh_later()
-        vscrollbar.configure(command=_yview)
-        vscrollbar._cell_selection_wrapped = True
-
-    if hscrollbar is not None and not getattr(hscrollbar, '_cell_selection_wrapped', False):
-        def _xview(*args, tr=tree):
-            tr.xview(*args)
-            tr._cell_selector.refresh_later()
-        hscrollbar.configure(command=_xview)
-        hscrollbar._cell_selection_wrapped = True
-
-    return tree
 
 
 class GlassCard(tk.Frame):
@@ -1661,30 +1228,20 @@ class PropertyTemplateBar(tk.Frame):
 class RealEstateCRM:
     def __init__(self, root, current_user):
         self.root = root
-        self.current_user = dict(current_user)
-        self.role = self.current_user.get('role', UserRole.STAFF.value)
-        if self._staff_restriction_applies(self.current_user):
-            self.role = UserRole.STAFF.value
-            self.current_user['role'] = self.role
+        self.current_user = current_user
+        self.role = current_user['role']
 
-        self.root.title(f"🏢 Professional Real Estate CRM — {self.current_user['full_name']} ({self.role})")
+        self.root.title(f"🏢 Professional Real Estate CRM — {current_user['full_name']} ({self.role})")
         set_app_icon(self.root)
         self.root.configure(bg=COLORS['bg'])
         self._responsive_after = None
         self._layout_profile = None
         self._dashboard_profile = None
         self._right_panel_visible = True
-        self._fullscreen = False
-        self._fullscreen_var = tk.BooleanVar(value=False)
         self._setup_main_window()
 
         self.currency_symbol = Settings.get('currency_symbol', 'Rs.')
         self.company_name = Settings.get('company_name')
-        self.report_service = ReportService(
-            DB_PATH,
-            currency_symbol=self.currency_symbol,
-            company_name=self.company_name,
-        )
         self.local_ip = self._get_local_ip()
         self.local_service_url = f"http://{self.local_ip}:{LOCAL_SERVICE_PORT}"
         self._api_server = None
@@ -1716,68 +1273,6 @@ class RealEstateCRM:
             self.root.state('zoomed')
         except Exception:
             pass
-
-    def _set_fullscreen(self, enabled):
-        enabled = bool(enabled)
-        if enabled:
-            try:
-                self._pre_fullscreen_state = self.root.state()
-                self._pre_fullscreen_geometry = self.root.geometry()
-            except Exception:
-                pass
-        try:
-            self.root.attributes('-fullscreen', enabled)
-        except Exception:
-            pass
-        try:
-            self.root.update_idletasks()
-        except Exception:
-            pass
-        try:
-            actual = bool(self.root.attributes('-fullscreen'))
-        except Exception:
-            actual = False
-        if enabled and not actual:
-            try:
-                sw = self.root.winfo_screenwidth()
-                sh = self.root.winfo_screenheight()
-                self.root.overrideredirect(True)
-                self.root.geometry(f"{sw}x{sh}+0+0")
-            except Exception:
-                try:
-                    self.root.state('zoomed')
-                except Exception:
-                    pass
-        elif not enabled:
-            try:
-                self.root.overrideredirect(False)
-            except Exception:
-                pass
-            try:
-                if getattr(self, '_pre_fullscreen_state', '') == 'zoomed':
-                    self.root.state('zoomed')
-                else:
-                    self.root.state('normal')
-            except Exception:
-                pass
-        self._fullscreen = enabled
-        try:
-            self._fullscreen_var.set(enabled)
-        except Exception:
-            pass
-        return 'break'
-
-    def _toggle_fullscreen(self, event=None):
-        try:
-            current = bool(self.root.attributes('-fullscreen'))
-        except Exception:
-            current = self._fullscreen
-        return self._set_fullscreen(not current)
-
-    def _exit_fullscreen(self, event=None):
-        if self._fullscreen:
-            return self._set_fullscreen(False)
-        return None
 
     def _schedule_responsive_layout(self, event=None):
         if event is not None and event.widget is not self.root:
@@ -1861,6 +1356,9 @@ class RealEstateCRM:
             self._dashboard_profile = profile
             self.root.after_idle(self._build_dashboard_content)
 
+
+
+
     def _setup_styles(self):
         style = ttk.Style()
         self.style = style
@@ -1872,27 +1370,13 @@ class RealEstateCRM:
         # Global styles
         style.configure('TNotebook', background=COLORS['bg'])
         style.configure('TNotebook.Tab', font=('Segoe UI', 9, 'bold'), padding=[12, 5])
-        
-        style.configure('Treeview',
-                        rowheight=34,
-                        font=('Segoe UI', 10),
-                        background='white',
-                        fieldbackground='white',
-                        foreground=COLORS['dark'])
-        style.configure('Treeview.Heading',
-                        font=('Segoe UI', 10, 'bold'),
-                        background=COLORS['primary'],
-                        foreground='white',
-                        padding=(8, 7))
-        style.map('Treeview',
-                  background=[('selected', 'white')],
-                  foreground=[('selected', COLORS['dark'])])
-        
+
+        style.configure('Treeview', rowheight=28, font=('Segoe UI', 9))
+        style.configure('Treeview.Heading', font=('Segoe UI', 9, 'bold'),
+                         background=COLORS['primary'], foreground='white')
+        style.map('Treeview', background=[('selected', COLORS['primary'])])
+
         style.configure('TLabel', font=('Segoe UI', 9), background=COLORS['bg'])
-        style.configure('Form.TFrame', background='white')
-        style.configure('Form.TLabel', font=('Segoe UI', 10, 'bold'), background='white', foreground=COLORS['dark'])
-        style.configure('TEntry', padding=(6, 4))
-        style.configure('TCombobox', padding=(6, 4))
         style.configure('Header.TLabel', font=('Segoe UI', 12, 'bold'), background=COLORS['primary'], foreground='white')
         style.configure('Card.TFrame', background='white', relief='flat')
         style.configure('TLabelframe', background=COLORS['bg'])
@@ -1900,60 +1384,33 @@ class RealEstateCRM:
 
     def _autofit_columns(self, tree):
         """Adjust treeview column widths based on content."""
-        font = tkfont.Font(family="Segoe UI", size=10)
-        header_font = tkfont.Font(family="Segoe UI", size=10, weight="bold")
-        compact_cols = {'ID', '#', 'Beds', 'Year', 'Month'}
-        long_cols = {
-            'Name', 'Full Name', 'Title', 'Owner', 'Client', 'Contact', 'Phone',
-            'Email', 'Location', 'Location / Match', 'Property Requires',
-            'Property Availability', 'Facilities', 'Description', 'Remarks',
-            'Notes', 'Admin Comment', 'Contact / Detail', 'Assigned'
-        }
-        money_cols = {
-            'Budget', 'Rent', 'Demand', 'Deposit', 'Maintenance', 'Amount',
-            'Value', 'Close Value', 'Salary', 'Base Salary', 'Net Salary',
-            'Bonus', 'Deductions', 'Rent/Sale'
-        }
+        if not tree.get_children():
+            # Still measure headers
+            font = tkfont.Font(family="Segoe UI", size=9, weight="bold")
+            for col in tree['columns']:
+                w = font.measure(tree.heading(col)['text']) + 30
+                tree.column(col, width=w)
+            return
 
+        font = tkfont.Font(family="Segoe UI", size=9)
+        header_font = tkfont.Font(family="Segoe UI", size=9, weight="bold")
+        
         for col in tree['columns']:
-            heading = tree.heading(col).get('text') or col
-            try:
-                current_width = int(tree.column(col, 'width') or 0)
-            except Exception:
-                current_width = 0
-            if not tree.heading(col).get('text') and current_width == 0:
-                tree.column(col, width=0, minwidth=0, stretch=False)
-                continue
-            max_w = header_font.measure(str(heading)) + 36
-            for item in tree.get_children()[:250]:
-                value = str(tree.set(item, col) or '').replace('\n', ' ')
-                max_w = max(max_w, font.measure(value) + 34)
-
-            if col in compact_cols:
-                min_w, cap = 70, 90
-            elif col in money_cols:
-                min_w, cap = 120, 180
-            elif col in long_cols:
-                min_w, cap = 170, 680
-            else:
-                min_w, cap = 105, 320
-
-            width = min(max(max_w, min_w), cap)
-            tree.heading(col, anchor='w')
-            tree.column(col, width=width, minwidth=min_w, anchor='w', stretch=False)
-        self._stripe_tree(tree)
-
-    def _stripe_tree(self, tree):
-        """Apply alternating row colors without removing existing row tags."""
-        try:
-            tree.tag_configure('oddrow', background='#f8fafc')
-            tree.tag_configure('evenrow', background='white')
-            for idx, item in enumerate(tree.get_children()):
-                tags = tuple(t for t in tree.item(item, 'tags') if t not in ('oddrow', 'evenrow'))
-                tags += ('evenrow' if idx % 2 == 0 else 'oddrow',)
-                tree.item(item, tags=tags)
-        except Exception:
-            pass
+            # Start with header width
+            max_w = header_font.measure(tree.heading(col)['text']) + 30
+            
+            # Check values (limit to first 50 for performance)
+            for item in tree.get_children()[:50]:
+                val = tree.set(item, col)
+                w = font.measure(str(val)) + 25
+                if w > max_w:
+                    max_w = w
+            
+            # Constraints
+            if max_w > 450: max_w = 450
+            if max_w < 50:  max_w = 50
+            
+            tree.column(col, width=max_w)
 
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -2014,13 +1471,11 @@ class RealEstateCRM:
         right.pack(side='right', padx=12)
 
         # Notification / pending badge
-        self.pending_lbl = None
-        if not self._is_staff_restricted():
-            self.pending_lbl = tk.Label(right, bg=COLORS['primary_dk'], fg='#fde68a',
-                                        font=('Segoe UI', 9, 'bold'),
-                                        padx=8, pady=2)
-            self.pending_lbl.pack(side='right', padx=6)
-            self._update_pending_badge()
+        self.pending_lbl = tk.Label(right, bg=COLORS['primary_dk'], fg='#fde68a',
+                                    font=('Segoe UI', 9, 'bold'),
+                                    padx=8, pady=2)
+        self.pending_lbl.pack(side='right', padx=6)
+        self._update_pending_badge()
 
         # Logout button
         logout_btn = tk.Button(right, text="⏻ Logout", font=('Segoe UI', 9),
@@ -2078,15 +1533,8 @@ class RealEstateCRM:
                 "income_transactions", "expense_transactions",
                 "clients", "properties", "employees",
             }
-            STAFF_TABLES = {
-                "rent_requirements", "rent_availability",
-                "sale_requirements", "sale_availability",
-            }
             # Simple rate limiter per IP
             _rate_limit = {}
-
-            def _allowed_tables(self):
-                return self.STAFF_TABLES if app._is_staff_restricted() else self.ALLOWED_TABLES
 
             def _send(self, payload, status=200):
                 body = json.dumps(payload, default=str).encode("utf-8")
@@ -2181,15 +1629,12 @@ class RealEstateCRM:
                     })
                     return
                 if path == "/users":
-                    if not has_permission(app.role, 'users'):
-                        self._send({"ok": False, "error": "access denied"}, 403)
-                        return
                     rows = Database.execute("SELECT id, username, full_name, email, role, is_active, last_login FROM users ORDER BY id", fetch=True) or []
                     self._send({"ok": True, "users": [dict(r) for r in rows]})
                     return
                 if path == "/stats":
                     stats = {}
-                    for t in self._allowed_tables():
+                    for t in self.ALLOWED_TABLES:
                         r = Database.execute(f"SELECT COUNT(*) c FROM {t}", fetch=True)
                         stats[t] = r[0]['c'] if r else 0
                     self._send({"ok": True, "stats": stats})
@@ -2210,8 +1655,8 @@ class RealEstateCRM:
                     return
                 if path.startswith("/records/"):
                     table = path.replace("/records/", "", 1).strip().lower()
-                    if table not in self._allowed_tables():
-                        self._send({"ok": False, "error": f"invalid table. allowed: {sorted(self._allowed_tables())}"}, 400)
+                    if table not in self.ALLOWED_TABLES:
+                        self._send({"ok": False, "error": f"invalid table. allowed: {sorted(self.ALLOWED_TABLES)}"}, 400)
                         return
                     limit = min(int(params.get("limit", 500)), 2000)
                     offset = int(params.get("offset", 0))
@@ -2228,7 +1673,7 @@ class RealEstateCRM:
                         return
                     results = []
                     pattern = f"%{q}%"
-                    for table in self._allowed_tables():
+                    for table in self.ALLOWED_TABLES:
                         try:
                             cols = Database.execute(f"PRAGMA table_info({table})", fetch=True) or []
                             col_names = [c['name'] for c in cols[:5]]
@@ -2256,8 +1701,8 @@ class RealEstateCRM:
                     self._send({"ok": False, "error": "POST only supported on /records/<table>"}, 400)
                     return
                 table = path.replace("/records/", "", 1).strip().lower()
-                if table not in self._allowed_tables():
-                    self._send({"ok": False, "error": "invalid table"}, 400)
+                if table not in self.ALLOWED_TABLES:
+                    self._send({"ok": False, "error": f"invalid table"}, 400)
                     return
                 try:
                     length = int(self.headers.get('Content-Length', 0))
@@ -2295,7 +1740,7 @@ class RealEstateCRM:
                     self._send({"ok": False, "error": "PUT requires /records/<table>/<id>"}, 400)
                     return
                 table = parts[1].lower()
-                if table not in self._allowed_tables():
+                if table not in self.ALLOWED_TABLES:
                     self._send({"ok": False, "error": "invalid table"}, 400)
                     return
                 try:
@@ -2338,7 +1783,7 @@ class RealEstateCRM:
                     self._send({"ok": False, "error": "DELETE requires /records/<table>/<id>"}, 400)
                     return
                 table = parts[1].lower()
-                if table not in self._allowed_tables():
+                if table not in self.ALLOWED_TABLES:
                     self._send({"ok": False, "error": "invalid table"}, 400)
                     return
                 try:
@@ -2362,8 +1807,6 @@ class RealEstateCRM:
         threading.Thread(target=_serve, daemon=True).start()
 
     def _update_pending_badge(self):
-        if self._is_staff_restricted() or not getattr(self, 'pending_lbl', None):
-            return
         tables = ['rent_requirements', 'rent_availability', 'sale_requirements', 'sale_availability']
         pending = 0
         for t in tables:
@@ -2402,11 +1845,17 @@ class RealEstateCRM:
 
         # Quick navigation buttons
         nav_items = [
-            (label, compact_label, key)
-            for key, label, compact_label, _builder in self._visible_tab_specs()
+            ("🏠  Dashboard", "🏠 Dash", 0),
+            ("🏠  Rent",      "🏠 Rent", 1),
+            ("💲  Sale",      "💲 Sale", 2),
+            ("🏗️  Properties","🏗️ Props", 3),
+            ("👥  Clients",   "👥 Clients", 4),
+            ("💰  Finance",   "💰 Fin", 5),
+            ("🧑‍💼  Staff",    "🧑‍💼 Staff", 6),
+            ("📈  Reports",   "📈 Reports", 7),
         ]
         self._nav_buttons = []
-        for label, short_text, key in nav_items:
+        for label, short_text, idx in nav_items:
             btn = tk.Button(parent, text=label,
                            bg=COLORS['sidebar'], fg=COLORS['sidebar_txt'],
                            font=('Segoe UI', 10),
@@ -2414,7 +1863,7 @@ class RealEstateCRM:
                            cursor='hand2',
                            activebackground='#334155',
                            activeforeground='white',
-                           command=lambda k=key: self._switch_tab(k))
+                           command=lambda i=idx: self._switch_tab(i))
             btn.pack(fill='x')
             self._nav_buttons.append((btn, label, short_text))
             # Hover effect
@@ -2424,13 +1873,6 @@ class RealEstateCRM:
                 b.configure(bg=COLORS['sidebar'], fg=COLORS['sidebar_txt'])
             btn.bind('<Enter>', on_hover)
             btn.bind('<Leave>', on_leave)
-
-        if self._is_staff_restricted():
-            footer = tk.Frame(parent, bg=COLORS['sidebar'])
-            footer.pack(side='bottom', fill='x', padx=12, pady=12)
-            tk.Label(footer, text=f"🔑 {self.role}", bg=COLORS['sidebar'],
-                    fg='#fde68a', font=('Segoe UI', 8, 'bold')).pack(anchor='w')
-            return
 
         # Pipeline section separator
         sep = tk.Frame(parent, bg='#334155', height=1)
@@ -2484,20 +1926,12 @@ class RealEstateCRM:
 
         # Quick action buttons
         actions = [
-            ("➕  New Rent Requirement", self._add_rent_req, COLORS['primary']),
-            ("🏠  New Rent Available",   self._add_rent_avail, COLORS['success']),
+            ("➕  New Requirement", self._add_rent_req, COLORS['primary']),
+            ("🏠  New Available",   self._add_rent_avail, COLORS['success']),
+            ("💰  Add Income",      self._add_income, '#059669'),
+            ("💸  Add Expense",     self._add_expense, '#dc2626'),
+            ("🧑‍💼  Add Employee",   self._add_employee, '#0891b2'),
         ]
-        if self._is_staff_restricted():
-            actions += [
-                ("➕  New Sale Requirement", self._add_sale_req, COLORS['primary']),
-                ("🏠  New Sale Available",   self._add_sale_avail, COLORS['success']),
-            ]
-        else:
-            actions += [
-                ("💰  Add Income",      self._add_income, '#059669'),
-                ("💸  Add Expense",     self._add_expense, '#dc2626'),
-                ("🧑‍💼  Add Employee",   self._add_employee, '#0891b2'),
-            ]
         for label, cmd, color in actions:
             btn = tk.Button(inner, text=label,
                            bg=color, fg='white',
@@ -2508,9 +1942,6 @@ class RealEstateCRM:
                            activeforeground='white',
                            command=cmd)
             btn.pack(fill='x', pady=3)
-
-        if self._is_staff_restricted():
-            return
 
         # AI Assistant section
         sep = tk.Frame(inner, bg=COLORS['border'], height=1)
@@ -2538,13 +1969,12 @@ class RealEstateCRM:
         shortcuts_info = [
             "Ctrl+N  New Record",
             "Ctrl+S  Save",
-            "Ctrl+F  Find",
+            "Ctrl+F  Search",
             "Ctrl+E  Edit",
             "Ctrl+R  Refresh",
             "Alt+1-4 Switch Tab",
-            "F11     Full Screen",
             "F5      Sync",
-            "Esc     Full Screen Off / Close",
+            "Esc     Close",
         ]
         for s in shortcuts_info:
             tk.Label(inner, text=s, bg='white', fg=COLORS['secondary'],
@@ -2562,47 +1992,41 @@ class RealEstateCRM:
 
         fm = tk.Menu(mb, tearoff=0, bg='white', font=('Segoe UI', 9))
         mb.add_cascade(label="📁 File", menu=fm)
-        if not self._is_staff_restricted():
-            fm.add_command(label="📤 Export to CSV", command=self._export_csv)
-            if has_permission(self.role, 'backup'):
-                fm.add_command(label="💾 Backup Database", command=self._backup_db)
-            fm.add_separator()
+        fm.add_command(label="📤 Export to CSV", command=self._export_csv)
+        fm.add_command(label="💾 Backup Database", command=self._backup_db)
+        fm.add_separator()
         fm.add_command(label="❌ Exit", command=self.root.quit)
 
-        if not self._is_staff_restricted():
-            em = tk.Menu(mb, tearoff=0, bg='white', font=('Segoe UI', 9))
-            mb.add_cascade(label="✏️ Edit", menu=em)
-            em.add_command(label="🔄 Refresh All", command=self._refresh_all)
-            em.add_command(label="Find", command=self._quick_search)
+        em = tk.Menu(mb, tearoff=0, bg='white', font=('Segoe UI', 9))
+        mb.add_cascade(label="✏️ Edit", menu=em)
+        em.add_command(label="🔄 Refresh All", command=self._refresh_all)
+        em.add_command(label="🔍 Quick Search", command=self._quick_search)
 
         vm = tk.Menu(mb, tearoff=0, bg='white', font=('Segoe UI', 9))
         mb.add_cascade(label="👁️ View", menu=vm)
-        for key, label, _compact, _builder in self._visible_tab_specs():
-            vm.add_command(label=label, command=lambda k=key: self._switch_tab(k))
+        vm.add_command(label="📊 Dashboard",       command=lambda: self._switch_tab(0))
+        vm.add_command(label="🏠 Rent Dealings",   command=lambda: self._switch_tab(1))
+        vm.add_command(label="💲 Sale Dealings",   command=lambda: self._switch_tab(2))
+        vm.add_command(label="🏗️ Properties",       command=lambda: self._switch_tab(3))
+        vm.add_command(label="👥 Clients",          command=lambda: self._switch_tab(4))
+        vm.add_command(label="💰 Financials",       command=lambda: self._switch_tab(5))
+        vm.add_command(label="🧑‍💼 Employees",       command=lambda: self._switch_tab(6))
+        vm.add_command(label="📈 Reports",          command=lambda: self._switch_tab(7))
 
-        vm.add_separator()
-        vm.add_checkbutton(
-            label="Full Screen On/Off (F11)",
-            variable=self._fullscreen_var,
-            command=lambda: self._set_fullscreen(self._fullscreen_var.get())
-        )
-        vm.add_command(label="Exit Full Screen (Esc)", command=lambda: self._set_fullscreen(False))
+        sm = tk.Menu(mb, tearoff=0, bg='white', font=('Segoe UI', 9))
+        mb.add_cascade(label="⚙️ Settings", menu=sm)
+        sm.add_command(label="🔐 Change My Password",  command=self._change_my_password)
+        sm.add_separator()
+        if has_permission(self.role, 'settings'):
+            sm.add_command(label="🏢 Company Settings",  command=self._company_settings)
+            sm.add_command(label="✅ Approval Center",     command=self._approval_center)
+            sm.add_command(label="👥 User Management",     command=self._user_management)
+            sm.add_command(label="🔑 Roles & Permissions", command=self._roles_info)
 
-        if not self._is_staff_restricted():
-            sm = tk.Menu(mb, tearoff=0, bg='white', font=('Segoe UI', 9))
-            mb.add_cascade(label="⚙️ Settings", menu=sm)
-            sm.add_command(label="🔐 Change My Password",  command=self._change_my_password)
-            sm.add_separator()
-            if has_permission(self.role, 'settings'):
-                sm.add_command(label="🏢 Company Settings",  command=self._company_settings)
-                sm.add_command(label="✅ Approval Center",     command=self._approval_center)
-                sm.add_command(label="👥 User Management",     command=self._user_management)
-                sm.add_command(label="🔑 Roles & Permissions", command=self._roles_info)
-
-            hm = tk.Menu(mb, tearoff=0, bg='white', font=('Segoe UI', 9))
-            mb.add_cascade(label="❓ Help", menu=hm)
-            hm.add_command(label="📖 User Guide", command=self._user_guide)
-            hm.add_command(label="ℹ️ About",      command=self._about)
+        hm = tk.Menu(mb, tearoff=0, bg='white', font=('Segoe UI', 9))
+        mb.add_cascade(label="❓ Help", menu=hm)
+        hm.add_command(label="📖 User Guide", command=self._user_guide)
+        hm.add_command(label="ℹ️ About",      command=self._about)
 
     # ─────────────────────────────────────────────────────────────────────────
     # GLOBAL KEYBOARD SHORTCUTS
@@ -2620,15 +2044,11 @@ class RealEstateCRM:
         _bind('<Control-r>',       lambda e: self._refresh_all())
         _bind('<Control-Shift-A>', lambda e: self._on_shortcut('ai_match'))
         _bind('<Control-Shift-R>', lambda e: self._on_shortcut('report'))
-        _bind('<F11>',             self._toggle_fullscreen)
-        self.root.bind_all('<F11>', self._toggle_fullscreen, add='+')
-        self.root.bind_all('<Alt-Return>', self._toggle_fullscreen, add='+')
         _bind('<Alt-1>',           lambda e: self._switch_tab(0))
         _bind('<Alt-2>',           lambda e: self._switch_tab(1))
         _bind('<Alt-3>',           lambda e: self._switch_tab(2))
         _bind('<Alt-4>',           lambda e: self._switch_tab(3))
         _bind('<Escape>',          lambda e: self._on_shortcut('escape'))
-        self.root.bind_all('<Escape>', lambda e: self._on_shortcut('escape'), add='+')
         _bind('<F5>',              lambda e: self._refresh_all())
 
     def _on_shortcut(self, action):
@@ -2638,9 +2058,11 @@ class RealEstateCRM:
         if action == 'new':
             current_tab_text = self.nb.tab(self.nb.select(), 'text') if current >= 0 else ''
             if 'Rent' in current_tab_text:
-                self._add_rent_req() if hasattr(self, '_add_rent_req') else None
-            elif 'Sale' in current_tab_text:
-                self._add_sale_req() if hasattr(self, '_add_sale_req') else None
+                sub = self.nb.tab(self.nb.select(), 'text')
+                if 'Requirement' in sub:
+                    self._add_rent_req() if hasattr(self, '_add_rent_req') else None
+                else:
+                    self._add_rent_avail() if hasattr(self, '_add_rent_avail') else None
             else:
                 self._quick_search()
         elif action == 'edit':
@@ -2655,9 +2077,6 @@ class RealEstateCRM:
                     self.nb.select(i)
                     return
         elif action == 'escape':
-            if self._fullscreen:
-                self._set_fullscreen(False)
-                return
             for w in self.root.winfo_children():
                 if isinstance(w, tk.Toplevel):
                     w.destroy()
@@ -2665,10 +2084,6 @@ class RealEstateCRM:
     def _switch_tab(self, idx):
         """Switch notebook tab programmatically."""
         try:
-            if isinstance(idx, str):
-                idx = getattr(self, '_tab_index_by_key', {}).get(idx)
-            if idx is None:
-                return
             if hasattr(self, 'nb') and idx < len(self.nb.tabs()):
                 self.nb.select(idx)
         except Exception:
@@ -2678,51 +2093,29 @@ class RealEstateCRM:
     # NOTEBOOK TABS
     # ─────────────────────────────────────────────────────────────────────────
 
-    def _staff_restriction_applies(self, user=None):
-        user = user or self.current_user
-        username = str(user.get('username', '')).strip().lower()
-        role = str(user.get('role', '')).strip().lower()
-        return role == UserRole.STAFF.value.lower() or username in {'staff', 'staf'}
-
-    def _is_staff_restricted(self):
-        return self._staff_restriction_applies(self.current_user)
-
-    def _all_tab_specs(self):
-        return [
-            ('dashboard', "📊 Dashboard",       "📊 Dash", self._tab_dashboard),
-            ('rent',      "🏠 Rent Dealings",   "🏠 Rent", self._tab_rent),
-            ('sale',      "💲 Sale Dealings",   "💲 Sale", self._tab_sale),
-            ('properties',"🏗️ Properties",     "🏗️ Props", self._tab_properties),
-            ('clients',   "👥 Clients",         "👥 Clients", self._tab_clients),
-            ('financials',"💰 Financials",      "💰 Finance", self._tab_financials),
-            ('employees', "🧑‍💼 Employees",     "🧑‍💼 Staff", self._tab_employees),
-            ('reports',   "📈 Reports",         "📈 Reports", self._tab_reports),
-        ]
-
-    def _visible_tab_specs(self):
-        specs = self._all_tab_specs()
-        if self._is_staff_restricted():
-            return [spec for spec in specs if spec[0] in ('rent', 'sale')]
-        return specs
-
     def _build_notebook(self, parent=None):
         if parent is None:
             parent = self.root
         self.nb = ttk.Notebook(parent)
         self.nb.pack(fill='both', expand=True, padx=8, pady=6)
 
-        tabs = self._visible_tab_specs()
+        tabs = [
+            ("📊 Dashboard",       "📊 Dash", self._tab_dashboard),
+            ("🏠 Rent Dealings",   "🏠 Rent", self._tab_rent),
+            ("💲 Sale Dealings",   "💲 Sale", self._tab_sale),
+            ("🏗️ Properties",     "🏗️ Props", self._tab_properties),
+            ("👥 Clients",         "👥 Clients", self._tab_clients),
+            ("💰 Financials",      "💰 Finance", self._tab_financials),
+            ("🧑‍💼 Employees",     "🧑‍💼 Staff", self._tab_employees),
+            ("📈 Reports",         "📈 Reports", self._tab_reports),
+        ]
         self.frames = {}
         self._notebook_labels = []
-        self._tab_index_by_key = {}
-        self._tab_keys = []
-        for key, label, compact_label, builder in tabs:
+        for label, compact_label, builder in tabs:
             f = ttk.Frame(self.nb)
             self.nb.add(f, text=label)
             self.frames[label] = f
             self._notebook_labels.append((label, compact_label))
-            self._tab_index_by_key[key] = len(self._tab_keys)
-            self._tab_keys.append(key)
             builder(f)
 
     # =========================================================================
@@ -2883,7 +2276,6 @@ class RealEstateCRM:
         t.grid(row=0, column=0, sticky='nsew')
         vsb.grid(row=0, column=1, sticky='ns')
         hsb.grid(row=1, column=0, sticky='ew')
-        enable_tree_cell_selection(t, hsb, vsb)
         
         return t
 
@@ -3020,7 +2412,6 @@ class RealEstateCRM:
         tree.grid(row=0, column=0, sticky='nsew')
         vsb.grid(row=0, column=1, sticky='ns')
         hsb.grid(row=1, column=0, sticky='ew')
-        enable_tree_cell_selection(tree, hsb, vsb)
 
         status_lbl = tk.Label(win, text="", bg=COLORS['bg'], fg=COLORS['secondary'],
                               font=('Segoe UI', 9))
@@ -3181,7 +2572,7 @@ class RealEstateCRM:
         req_f.grid_columnconfigure(0, weight=1)
         self.rent_req_tree = self._make_tree(req_f,
             ('ID','Date','Name','Contact','Property Requires','Size','Measurement','Budget','Floor','Location',
-             'Option 1','Option 2','Facilities','Client/Broker','Bachelor / Family','Remarks',
+             'Option 1','Option 2','Facilities','Client/Broker','Bachlour / Family','Remarks',
              'Stage','Priority','Next Follow-up','Assigned','Probability','Close Value',
              'Approval','Admin Comment'), row=0)
         try:
@@ -3216,8 +2607,6 @@ class RealEstateCRM:
                       **self._btn_style('warning')).pack(side='left', padx=3)
         tk.Button(ctrl1, text="📤 Export", command=lambda: self._export_tree(self.rent_req_tree, 'rent_requirements'),
                   **self._btn_style()).pack(side='left', padx=3)
-        tk.Button(ctrl1, text="📈 Report", command=self._report_rent,
-                  **self._btn_style('success')).pack(side='left', padx=3)
 
         # ── Rent Availability ──────────────────────────────────────────────
         av_f = ttk.Frame(rent_nb)
@@ -3226,7 +2615,7 @@ class RealEstateCRM:
         av_f.grid_columnconfigure(0, weight=1)
         self.rent_av_tree = self._make_tree(av_f,
             ('ID','Date','Name','Contact','Property Availability','Size','Measurement','Rent','Floor','Location',
-             'Deposit','Maintenance','Facilities','Client/Broker','Bachelor / Family','Remarks',
+             'Deposit','Maintenance','Facilities','Client/Broker','Bachlour / Family','Remarks',
              'Stage','Priority','Next Follow-up','Assigned','Probability','Close Value',
              'Approval','Admin Comment'), row=0)
         try:
@@ -3261,8 +2650,6 @@ class RealEstateCRM:
                       **self._btn_style('warning')).pack(side='left', padx=3)
         tk.Button(ctrl2, text="📤 Export", command=lambda: self._export_tree(self.rent_av_tree, 'rent_availability'),
                   **self._btn_style()).pack(side='left', padx=3)
-        tk.Button(ctrl2, text="📈 Report", command=self._report_rent,
-                  **self._btn_style('success')).pack(side='left', padx=3)
 
     # =========================================================================
     # TAB: SALE DEALINGS  (Requirements + Availability)
@@ -3292,7 +2679,7 @@ class RealEstateCRM:
         sale_req_f.grid_columnconfigure(0, weight=1)
         self.sale_req_tree = self._make_tree(sale_req_f,
             ('ID','Date','Name','Contact','Property Requires','Size','Measurement','Budget','Floor','Location',
-             'Option 1','Option 2','Facilities','Client/Broker','Bachelor / Family','Remarks',
+             'Option 1','Option 2','Facilities','Client/Broker','Bachlour / Family','Remarks',
              'Stage','Priority','Next Follow-up','Assigned','Probability','Close Value',
              'Approval','Admin Comment'), row=0)
         try:
@@ -3327,8 +2714,6 @@ class RealEstateCRM:
                       **self._btn_style('warning')).pack(side='left', padx=3)
         tk.Button(ctrl3, text="📤 Export", command=lambda: self._export_tree(self.sale_req_tree, 'sale_requirements'),
                   **self._btn_style()).pack(side='left', padx=3)
-        tk.Button(ctrl3, text="📈 Report", command=self._report_sale,
-                  **self._btn_style('success')).pack(side='left', padx=3)
 
         # ── Sale Availability ──────────────────────────────────────────────
         sale_av_f = ttk.Frame(sale_nb)
@@ -3337,7 +2722,7 @@ class RealEstateCRM:
         sale_av_f.grid_columnconfigure(0, weight=1)
         self.sale_av_tree = self._make_tree(sale_av_f,
             ('ID','Date','Name','Contact','Property Availability','Size','Measurement','Demand','Floor','Location',
-             'Option 1','Option 2','Facilities','Client/Broker','Bachelor / Family','Remarks',
+             'Option 1','Option 2','Facilities','Client/Broker','Bachlour / Family','Remarks',
              'Stage','Priority','Next Follow-up','Assigned','Probability','Close Value',
              'Approval','Admin Comment'), row=0)
         try:
@@ -3372,8 +2757,6 @@ class RealEstateCRM:
                       **self._btn_style('warning')).pack(side='left', padx=3)
         tk.Button(ctrl4, text="📤 Export", command=lambda: self._export_tree(self.sale_av_tree, 'sale_availability'),
                   **self._btn_style()).pack(side='left', padx=3)
-        tk.Button(ctrl4, text="📈 Report", command=self._report_sale,
-                  **self._btn_style('success')).pack(side='left', padx=3)
 
     def _load_rent_req(self):
         self.rent_req_tree.delete(*self.rent_req_tree.get_children())
@@ -3410,12 +2793,15 @@ class RealEstateCRM:
                 r['assigned_to'] or '',
                 f"{safe_float(r['deal_probability']):.0f}%",
                 f"{self.currency_symbol}{safe_float(r['expected_close_value']):,.0f}",
+
+
+
                                 r['approval_status'] or 'Pending',
                 r['approval_comment'] or '',
             ))
         self._autofit_columns(self.rent_req_tree)
 
-    def _load_rent_avail(self):
+
         self.rent_av_tree.delete(*self.rent_av_tree.get_children())
         rows = Database.execute(
             """SELECT id,date,owner_name,contact,property_availability,size,measurement,monthly_rent,floor,location,
@@ -3454,6 +2840,10 @@ class RealEstateCRM:
                 r['assigned_to'] or '',
                 f"{safe_float(r['deal_probability']):.0f}%",
                 f"{self.currency_symbol}{safe_float(r['expected_close_value']):,.0f}",
+
+
+
+
                                 r['approval_status'] or 'Pending',
                 r['approval_comment'] or '',
             ))
@@ -3485,6 +2875,9 @@ class RealEstateCRM:
                 r['next_follow_up'] or '', r['assigned_to'] or '',
                 f"{safe_float(r['deal_probability']):.0f}%",
                 f"{self.currency_symbol}{safe_float(r['expected_close_value']):,.0f}",
+
+
+
                                 r['approval_status'] or 'Pending', r['approval_comment'] or '',
             ))
         self._autofit_columns(self.sale_req_tree)
@@ -3507,7 +2900,7 @@ class RealEstateCRM:
             ("Facilities",           "facilities",        "combo_multi",
              ['lift','car parking','cctv','security','sweet water','salty water','gas','electercity 24/7','electercity with loadshading']),
             ("Client / Broker",      "client_broker",     "entry", ""),
-            ("Bachelor / Family",    "bachelor_family",   "entry", ""),
+            ("Bachlour / Family",    "bachelor_family",   "entry", ""),
             ("Remarks",              "remarks",           "text",  ""),
         ]
         def save(vals):
@@ -3559,15 +2952,10 @@ class RealEstateCRM:
             ("Facilities",           "facilities",        "combo_multi",
              ['lift','car parking','cctv','security','sweet water','salty water','gas','electercity 24/7','electercity with loadshading']),
             ("Client / Broker",      "client_broker",     "entry", d['client_broker'] or ''),
-            ("Bachelor / Family",    "bachelor_family",   "entry", d['bachelor_family'] or ''),
+            ("Bachlour / Family",    "bachelor_family",   "entry", d['bachelor_family'] or ''),
             ("Remarks",              "remarks",           "text",  d['remarks'] or ''),
         ]
-        pre = {
-            'property_requires': d.get('property_requires'),
-            'size': d.get('size'),
-            'location': d.get('location'),
-            'facilities': d.get('facilities'),
-        }
+        pre = {'property_requires': d.get('property_requires'), 'size': d.get('size'), 'facilities': d.get('facilities')}
         def save(vals):
             Database.execute(
                 """UPDATE sale_requirements
@@ -3608,6 +2996,9 @@ class RealEstateCRM:
                 r['next_follow_up'] or '', r['assigned_to'] or '',
                 f"{safe_float(r['deal_probability']):.0f}%",
                 f"{self.currency_symbol}{safe_float(r['expected_close_value']):,.0f}",
+
+
+
                                 r['approval_status'] or 'Pending', r['approval_comment'] or '',
             ))
         self._autofit_columns(self.sale_av_tree)
@@ -3631,7 +3022,7 @@ class RealEstateCRM:
             ("Facilities",           "facilities",           "combo_multi",
              ['lift','car parking','cctv','security','sweet water','salty water','gas','electercity 24/7','electercity with loadshading']),
             ("Client / Broker",      "client_broker",        "entry", ""),
-            ("Bachelor / Family",    "bachelor_family",      "entry", ""),
+            ("Bachlour / Family",    "bachelor_family",      "entry", ""),
             ("Remarks",              "remarks",              "text",  ""),
         ]
         def save(vals):
@@ -3684,16 +3075,11 @@ class RealEstateCRM:
             ("Facilities",           "facilities",           "combo_multi",
              ['lift','car parking','cctv','security','sweet water','salty water','gas','electercity 24/7','electercity with loadshading']),
             ("Client / Broker",      "client_broker",        "entry", d['client_broker'] or ''),
-            ("Bachelor / Family",    "bachelor_family",      "entry", d['bachelor_family'] or ''),
+            ("Bachlour / Family",    "bachelor_family",      "entry", d['bachelor_family'] or ''),
             ("Remarks",              "remarks",              "text",  d['remarks'] or ''),
         ]
-        pre = {
-            'property_availability': d.get('property_availability'),
-            'size': d.get('size'),
-            'measurement': d.get('measurement'),
-            'location': d.get('location'),
-            'facilities': d.get('facilities'),
-        }
+        pre = {'property_availability': d.get('property_availability'), 'size': d.get('size'),
+               'measurement': d.get('measurement'), 'facilities': d.get('facilities')}
         def save(vals):
             Database.execute(
                 """UPDATE sale_availability
@@ -3731,7 +3117,7 @@ class RealEstateCRM:
             ("Facilities",           "facilities",        "combo_multi",
              ['lift','car parking','cctv','security','sweet water','salty water','gas','electercity 24/7','electercity with loadshading']),
             ("Client / Broker",      "client_broker",     "entry", ""),
-            ("Bachelor / Family",    "bachelor_family",   "entry", ""),
+            ("Bachlour / Family",    "bachelor_family",   "entry", ""),
             ("Remarks",              "remarks",           "text",  ""),
         ]
         def save(vals):
@@ -3785,15 +3171,10 @@ class RealEstateCRM:
             ("Facilities",           "facilities",        "combo_multi",
              ['lift','car parking','cctv','security','sweet water','salty water','gas','electercity 24/7','electercity with loadshading']),
             ("Client / Broker",      "client_broker",     "entry", d.get('client_broker', '') or ''),
-            ("Bachelor / Family",    "bachelor_family",   "entry", d.get('bachelor_family', '') or ''),
+            ("Bachlour / Family",    "bachelor_family",   "entry", d.get('bachelor_family', '') or ''),
             ("Remarks",              "remarks",           "text",  d.get('remarks', '') or ''),
         ]
-        pre = {
-            'property_requires': d.get('property_requires'),
-            'size': d.get('size'),
-            'location': d.get('location'),
-            'facilities': d.get('facilities'),
-        }
+        pre = {'property_requires': d.get('property_requires'), 'size': d.get('size'), 'facilities': d.get('facilities')}
         def save(vals):
             Database.execute(
                 """UPDATE rent_requirements
@@ -3830,7 +3211,7 @@ class RealEstateCRM:
             ("Facilities",           "facilities",           "combo_multi",
              ['lift','car parking','cctv','security','sweet water','salty water','gas','electercity 24/7','electercity with loadshading']),
             ("Client / Broker",      "client_broker",        "entry", ""),
-            ("Bachelor / Family",    "bachelor_family",      "entry", ""),
+            ("Bachlour / Family",    "bachelor_family",      "entry", ""),
             ("Remarks",              "remarks",              "text",  ""),
         ]
         def save(vals):
@@ -3885,15 +3266,11 @@ class RealEstateCRM:
             ("Facilities",           "facilities",           "combo_multi",
              ['lift','car parking','cctv','security','sweet water','salty water','gas','electercity 24/7','electercity with loadshading']),
             ("Client / Broker",      "client_broker",        "entry", d.get('client_broker') or ''),
-            ("Bachelor / Family",    "bachelor_family",      "entry", d.get('bachelor_family') or ''),
+            ("Bachlour / Family",    "bachelor_family",      "entry", d.get('bachelor_family') or ''),
             ("Remarks",              "remarks",              "text",  d.get('remarks') or ''),
         ]
-        pre = {
-            'property_availability': d.get('property_availability'),
-            'size': d.get('size'),
-            'location': d.get('location'),
-            'facilities': d.get('facilities'),
-        }
+        pre = {'property_availability': d.get('property_availability'), 'size': d.get('size'),
+               'facilities': d.get('facilities')}
         def save(vals):
             Database.execute(
                 """UPDATE rent_availability
@@ -4141,6 +3518,8 @@ class RealEstateCRM:
                 r['id'], r['property_code'] or '', r['title'] or '',
                 r['property_type'] or '', r['status'] or '',
                 r['owner_name'] or '', r['location'] or '',
+
+
                                 f"{self.currency_symbol}{r['monthly_rent']:,.0f}" if r['monthly_rent'] else '-',
                 f"{self.currency_symbol}{r['maintenance_charge']:,.0f}" if r['maintenance_charge'] else '-'))
         self._autofit_columns(self.prop_tree)
@@ -4212,12 +3591,7 @@ class RealEstateCRM:
             ("Facilities",           "facilities",          "entry", d['facilities'] or ''),
             ("Description",          "description",         "text",  d['description'] or ''),
         ]
-        pre = {
-            'property_type': d['property_type'],
-            'status': d['status'],
-            'location': d['location'],
-            'floor': d['floor'],
-        }
+        pre = {'property_type': d['property_type'], 'status': d['status'], 'floor': d['floor']}
         def save(vals):
             Database.execute(
                 """UPDATE properties SET title=?,property_type=?,status=?,owner_name=?,owner_contact=?,
@@ -4274,6 +3648,8 @@ class RealEstateCRM:
         for r in rows:
             self.client_tree.insert('', 'end', values=(
                 r['id'], r['client_name'] or '', r['cnic'] or '',
+
+
                                 r['phone'] or '', r['email'] or '',
                 r['client_type'] or '', r['status'] or ''))
         self._autofit_columns(self.client_tree)
@@ -4460,6 +3836,7 @@ class RealEstateCRM:
                 f"{self.currency_symbol}{amt:,.0f}",
                 r['tenant_name'] or '', r['description'] or '',
                 r['receipt_no'] or '', r['payment_method'] or ''))
+
         try:
             self.income_total_lbl.config(
                 text=f"  Total Income:  {self.currency_symbol} {total:,.0f}")
@@ -4482,6 +3859,7 @@ class RealEstateCRM:
                 f"{self.currency_symbol}{amt:,.0f}",
                 r['vendor_name'] or '', r['description'] or '',
                 r['invoice_no'] or '', r['payment_method'] or ''))
+
         try:
             self.expense_total_lbl.config(
                 text=f"  Total Expenses:  {self.currency_symbol} {total:,.0f}")
@@ -4729,6 +4107,8 @@ class RealEstateCRM:
                 r['position'] or '', r['department'] or '',
                 r['phone'] or '',
                 f"{self.currency_symbol}{r['base_salary']:,.0f}" if r['base_salary'] else '-',
+
+
                                 f"{r['commission_rate']}%" if r['commission_rate'] is not None else '-',
                 r['status'] or ''))
         self._autofit_columns(self.emp_tree)
@@ -4818,8 +4198,8 @@ class RealEstateCRM:
         tk.Label(hdr2, text="Date:", bg=COLORS['bg'],
                  font=('Segoe UI', 10)).pack(side='left', padx=4)
         self.att_date_var = tk.StringVar(value=datetime.now().strftime("%Y-%m-%d"))
-        ttk.Entry(hdr2, textvariable=self.att_date_var, width=14,
-                  font=('Segoe UI', 10)).pack(side='left', padx=4)
+        tk.Entry(hdr2, textvariable=self.att_date_var, width=12,
+                 font=('Segoe UI', 10)).pack(side='left', padx=4)
         tk.Button(hdr2, text="📋 Load / Mark Attendance",
                   command=self._load_attendance, **self._btn_style()).pack(side='left', padx=6)
 
@@ -4950,6 +4330,9 @@ class RealEstateCRM:
                 r['month'] or '', r['year'] or '',
                 f"{self.currency_symbol}{r['base_salary']:,.0f}" if r['base_salary'] else '-',
                 f"{self.currency_symbol}{r['bonus']:,.0f}"       if r['bonus']       else '-',
+
+
+
                                 f"{self.currency_symbol}{r['deductions']:,.0f}"  if r['deductions']  else '-',
                 f"{self.currency_symbol}{r['net_salary']:,.0f}"  if r['net_salary']  else '-',
                 r['payment_method'] or ''))
@@ -4969,7 +4352,6 @@ class RealEstateCRM:
         btns = [
             ("💰 Financial Summary", self._report_financial),
             ("🏠 Rent Report",       self._report_rent),
-            ("💲 Sale Report",       self._report_sale),
             ("🏗️ Property Report",  self._report_properties),
             ("👥 Client Report",    self._report_clients),
             ("🧑‍💼 Employee Report", self._report_employees),
@@ -4984,13 +4366,13 @@ class RealEstateCRM:
         tk.Label(dr_f, text="From:", bg=COLORS['bg'],
                  font=('Segoe UI', 9)).pack(side='left', padx=4)
         self.rpt_from = tk.StringVar(value=datetime.now().strftime("%Y-%m-01"))
-        ttk.Entry(dr_f, textvariable=self.rpt_from, width=14,
-                  font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Entry(dr_f, textvariable=self.rpt_from, width=12,
+                 font=('Segoe UI', 9)).pack(side='left', padx=2)
         tk.Label(dr_f, text="To:", bg=COLORS['bg'],
                  font=('Segoe UI', 9)).pack(side='left', padx=4)
         self.rpt_to = tk.StringVar(value=datetime.now().strftime("%Y-%m-%d"))
-        ttk.Entry(dr_f, textvariable=self.rpt_to, width=14,
-                  font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Entry(dr_f, textvariable=self.rpt_to, width=12,
+                 font=('Segoe UI', 9)).pack(side='left', padx=2)
 
         export_f = tk.Frame(parent, bg=COLORS['bg'])
         export_f.pack(fill='x', padx=10, pady=2)
@@ -5014,7 +4396,6 @@ class RealEstateCRM:
                 f"{'═'*65}\n\n")
 
     def _report_financial(self):
-        self._last_report_result = None
         txt = self._report_header("FINANCIAL SUMMARY REPORT")
         income   = self._sum('income_transactions', 'amount')
         expenses = self._sum('expense_transactions', 'amount')
@@ -5042,44 +4423,39 @@ class RealEstateCRM:
         self.report_text.delete('1.0', 'end')
         self.report_text.insert('1.0', txt)
 
-    def _sync_report_service(self):
-        self.report_service.currency_symbol = getattr(self, 'currency_symbol', 'Rs.')
-        self.report_service.company_name = getattr(self, 'company_name', None) or 'Real Estate Management'
-
-    def _current_report_dates(self):
-        start = self.rpt_from.get().strip() if hasattr(self, 'rpt_from') else None
-        end = self.rpt_to.get().strip() if hasattr(self, 'rpt_to') else None
-        return start or None, end or None
-
-    def _display_report_result(self, result):
-        self._last_report_result = result
-        if hasattr(self, 'report_text'):
-            self.report_text.delete('1.0', 'end')
-            self.report_text.insert('1.0', result.text)
-            self._switch_tab('reports')
-            return
-
-        win = tk.Toplevel(self.root)
-        win.title(result.title)
-        set_app_icon(win)
-        fit_window_to_screen(win, 980, 700, min_w=720, min_h=460)
-        box = scrolledtext.ScrolledText(win, font=('Courier New', 9), bg='white', fg=COLORS['dark'])
-        box.pack(fill='both', expand=True, padx=10, pady=10)
-        box.insert('1.0', result.text)
-        box.configure(state='disabled')
-
     def _report_rent(self):
-        self._sync_report_service()
-        start, end = self._current_report_dates()
-        self._display_report_result(self.report_service.rent_report(start, end))
+        txt = self._report_header("PROPERTY DEALINGS REPORT")
+        txt += "  RENT REQUIREMENTS\n  " + "─"*60 + "\n"
+        rows = Database.execute("SELECT * FROM rent_requirements ORDER BY id DESC", fetch=True) or []
+        for r in rows:
+            txt += (f"  #{r['id']}  {r['client_name'] or '-':<25}  {r['location'] or '-':<20}"
+                    f"  Budget: {self.currency_symbol}{(r['budget'] or 0):,.0f}  "
+                    f"  Req: {r['property_requires'] or '-'}\n")
+        txt += f"\n  Total Requirements: {len(rows)}\n\n"
+        txt += "  AVAILABLE PROPERTIES\n  " + "─"*60 + "\n"
+        rows2 = Database.execute("SELECT * FROM rent_availability ORDER BY id DESC", fetch=True) or []
+        for r in rows2:
+            txt += (f"  #{r['id']}  {r['owner_name'] or '-':<25}  {r['location'] or '-':<20}"
+                    f"  Rent: {self.currency_symbol}{r['monthly_rent']:,.0f}/mo  Status: {r['status'] or ''}\n")
+        txt += f"\n  Total Available: {len(rows2)}\n"
 
-    def _report_sale(self):
-        self._sync_report_service()
-        start, end = self._current_report_dates()
-        self._display_report_result(self.report_service.sale_report(start, end))
+        txt += "\n  SALE REQUIREMENTS\n  " + "─"*60 + "\n"
+        rows3 = Database.execute("SELECT * FROM sale_requirements ORDER BY id DESC", fetch=True) or []
+        for r in rows3:
+            txt += (f"  #{r['id']}  {r['client_name'] or '-':<25}  {r['location'] or '-':<20}"
+                    f"  Budget: {self.currency_symbol}{(r['budget'] or 0):,.0f}\n")
+        txt += f"\n  Total Sale Requirements: {len(rows3)}\n"
+
+        txt += "\n  SALE AVAILABILITY\n  " + "─"*60 + "\n"
+        rows4 = Database.execute("SELECT * FROM sale_availability ORDER BY id DESC", fetch=True) or []
+        for r in rows4:
+            txt += (f"  #{r['id']}  {r['owner_name'] or '-':<25}  {r['location'] or '-':<20}"
+                    f"  Demand: {self.currency_symbol}{(r['demand'] or 0):,.0f}\n")
+        txt += f"\n  Total Sale Availability: {len(rows4)}\n"
+        self.report_text.delete('1.0', 'end')
+        self.report_text.insert('1.0', txt)
 
     def _report_properties(self):
-        self._last_report_result = None
         txt = self._report_header("PROPERTY PORTFOLIO REPORT")
         rows = Database.execute("SELECT * FROM properties ORDER BY id DESC", fetch=True) or []
         by_status = {}
@@ -5097,7 +4473,6 @@ class RealEstateCRM:
         self.report_text.insert('1.0', txt)
 
     def _report_clients(self):
-        self._last_report_result = None
         txt = self._report_header("CLIENT REPORT")
         rows = Database.execute("SELECT * FROM clients ORDER BY id DESC", fetch=True) or []
         for r in rows:
@@ -5108,7 +4483,6 @@ class RealEstateCRM:
         self.report_text.insert('1.0', txt)
 
     def _report_employees(self):
-        self._last_report_result = None
         txt = self._report_header("EMPLOYEE REPORT")
         rows = Database.execute("SELECT * FROM employees ORDER BY id", fetch=True) or []
         total_salary = 0
@@ -5124,7 +4498,6 @@ class RealEstateCRM:
         self.report_text.insert('1.0', txt)
 
     def _report_attendance(self):
-        self._last_report_result = None
         txt = self._report_header("ATTENDANCE REPORT")
         rows = Database.execute(
             """SELECT a.date, e.full_name, a.status FROM attendance a
@@ -5147,44 +4520,11 @@ class RealEstateCRM:
             return
         fp = filedialog.asksaveasfilename(defaultextension='.txt',
                                            filetypes=[('Text Files', '*.txt'),
-                                                      ('CSV Files', '*.csv'),
-                                                      ('PDF Files', '*.pdf')])
+                                                      ('CSV Files', '*.csv')])
         if fp:
-            try:
-                result = getattr(self, '_last_report_result', None)
-                is_current_structured = bool(result and content.strip() == result.text.strip())
-                ext = os.path.splitext(fp)[1].lower()
-                if ext == '.csv' and is_current_structured:
-                    export_report_csv(result, fp)
-                elif ext == '.pdf' and is_current_structured:
-                    export_report_pdf(result, fp)
-                elif ext == '.pdf':
-                    if not FPDF_AVAILABLE:
-                        raise RuntimeError("fpdf2 is required to export PDF reports.")
-                    self._write_plain_report_pdf(content, fp)
-                else:
-                    if is_current_structured:
-                        export_report_text(result, fp)
-                    else:
-                        with open(fp, 'w', encoding='utf-8') as f:
-                            f.write(content)
-                messagebox.showinfo("✅ Exported", f"Report saved to:\n{fp}")
-            except Exception as e:
-                messagebox.showerror("Error", str(e))
-
-    def _write_plain_report_pdf(self, content, path):
-        pdf = FPDF(orientation='L', format='A4')
-        pdf.add_page()
-        pdf.set_margins(10, 10, 10)
-        pdf.set_font("Courier", size=8)
-        for line in content.split('\n'):
-            clean = ''.join(c if ord(c) < 128 else '' for c in line)
-            if len(clean) > 140:
-                for i in range(0, len(clean), 140):
-                    pdf.cell(0, 4, clean[i:i+140], ln=True)
-            else:
-                pdf.cell(0, 4, clean or " ", ln=True)
-        pdf.output(path)
+            with open(fp, 'w', encoding='utf-8') as f:
+                f.write(content)
+            messagebox.showinfo("✅ Exported", f"Report saved to:\n{fp}")
 
     def _print_pdf(self):
         if not FPDF_AVAILABLE:
@@ -5195,14 +4535,21 @@ class RealEstateCRM:
             messagebox.showwarning("Empty", "Please generate a report first")
             return
         try:
+            pdf = FPDF(orientation='L', format='A4')
+            pdf.add_page()
+            pdf.set_margins(10, 10, 10)
+            pdf.set_font("Courier", size=8)
+            for line in content.split('\n'):
+                clean = ''.join(c if ord(c) < 128 else '' for c in line)
+                if len(clean) > 140:
+                    for i in range(0, len(clean), 140):
+                        pdf.cell(0, 4, clean[i:i+140], ln=True)
+                else:
+                    pdf.cell(0, 4, clean or " ", ln=True)
             import tempfile, subprocess, platform
             tmp = os.path.join(tempfile.gettempdir(),
                                f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
-            result = getattr(self, '_last_report_result', None)
-            if result and content.strip() == result.text.strip():
-                export_report_pdf(result, tmp)
-            else:
-                self._write_plain_report_pdf(content, tmp)
+            pdf.output(tmp)
             if platform.system() == 'Windows':
                 os.startfile(tmp)
             elif platform.system() == 'Darwin':
@@ -5259,20 +4606,8 @@ class RealEstateCRM:
             entries[key] = e
 
         def save():
-            try:
-                for key, entry in entries.items():
-                    validate_form_value(
-                        key,
-                        key.replace('_', ' ').title(),
-                        entry.get(),
-                        required=key in ('company_name', 'currency_symbol'),
-                        numeric=key in NUMERIC_FORM_KEYS,
-                    )
-                for key, entry in entries.items():
-                    Settings.set(key, entry.get().strip())
-            except ValueError as ex:
-                messagebox.showwarning("Validation", str(ex), parent=win)
-                return
+            for key, entry in entries.items():
+                Settings.set(key, entry.get())
             self.currency_symbol = Settings.get('currency_symbol', 'Rs.')
             self.company_name    = Settings.get('company_name')
             messagebox.showinfo("✅ Saved", "Settings saved successfully!")
@@ -5315,7 +4650,6 @@ class RealEstateCRM:
         tree.grid(row=0, column=0, sticky='nsew')
         vsb.grid(row=0, column=1, sticky='ns')
         hsb.grid(row=1, column=0, sticky='ew')
-        enable_tree_cell_selection(tree, hsb, vsb)
 
         self._load_users_tree(tree)
 
@@ -5345,6 +4679,7 @@ class RealEstateCRM:
                 messagebox.showwarning("Select", "Please select a user to edit", parent=win)
                 return
             uid      = tree.item(sel[0])['values'][0]
+            username = tree.item(sel[0])['values'][1]
             result = Database.execute("SELECT * FROM users WHERE id=?", (uid,), fetch=True)
             if not result:
                 return
@@ -5531,11 +4866,10 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
         win = tk.Toplevel(parent or self.root)
         win.title(title)
         set_app_icon(win)
-        win.transient(parent or self.root)
         win.grab_set()
 
-        h = min(820, 150 + len(fields) * 58)
-        fit_window_to_screen(win, 760, h, min_w=560, min_h=420)
+        h = min(750, 100 + len(fields) * 52)
+        fit_window_to_screen(win, 560, h, min_w=430, min_h=360)
 
         # Scrollable interior
         canvas = tk.Canvas(win, bg='white', highlightthickness=0)
@@ -5544,7 +4878,7 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
         vsb.pack(side='right', fill='y')
         canvas.pack(fill='both', expand=True)
 
-        inner = tk.Frame(canvas, bg='white', padx=30, pady=18)
+        inner = tk.Frame(canvas, bg='white', padx=25, pady=15)
         cw    = canvas.create_window((0, 0), window=inner, anchor='nw')
 
         def _on_inner_configure(e):
@@ -5567,17 +4901,12 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
             canvas.bind_all('<MouseWheel>', _on_wheel)
         def _unbind_wheel(_e=None):
             canvas.unbind_all('<MouseWheel>')
-        def _cancel(event=None):
-            _unbind_wheel()
-            win.destroy()
-            return 'break'
         win.bind('<FocusIn>', _bind_wheel)
         win.bind('<FocusOut>', _unbind_wheel)
-        win.protocol("WM_DELETE_WINDOW", _cancel)
         _bind_wheel()
 
         tk.Label(inner, text=title, bg='white', fg=COLORS['primary'],
-                 font=('Segoe UI', 14, 'bold')).pack(anchor='w', pady=(0, 14))
+                 font=('Segoe UI', 13, 'bold')).pack(anchor='w', pady=(0, 12))
 
         # Property template quick-fill bar
         template_bar = None
@@ -5586,46 +4915,35 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
             template_bar.pack(fill='x', pady=(0, 8))
 
         entries = {}
-        field_meta = {}
         for label, key, ftype, default in fields:
-            clean_label = str(label).replace('*', '').strip()
-            option_values = default if isinstance(default, list) else []
-            field_meta[key] = {
-                'label': clean_label,
-                'required': '*' in str(label),
-                'numeric': key in NUMERIC_FORM_KEYS,
-                'options': option_values,
-                'strict_options': ftype == 'combo',
-            }
             row = tk.Frame(inner, bg='white')
-            row.pack(fill='x', pady=6)
+            row.pack(fill='x', pady=4)
             tk.Label(row, text=label, bg='white', fg=COLORS['dark'],
-                     font=('Segoe UI', 10, 'bold'),
-                     width=24, anchor='w').pack(side='left', anchor='n')
+                     font=('Segoe UI', 9, 'bold'),
+                     width=22, anchor='w').pack(side='left')
 
             if ftype == 'autocomplete':
                 options = default if isinstance(default, list) else []
-                e = AutocompleteCombobox(row, completion_list=options, width=46, font=('Segoe UI', 10))
+                e = AutocompleteCombobox(row, completion_list=options, width=28, font=('Segoe UI', 10))
                 e.set(presets.get(key, options[0] if options else ''))
                 entries[key] = (e, ftype, None)
-                e.pack(side='left', padx=6, fill='x', expand=True)
+                e.pack(side='left', padx=6)
             elif ftype == 'combo':
                 options = default if isinstance(default, list) else []
-                e = ttk.Combobox(row, values=options, width=46, font=('Segoe UI', 10))
+                e = ttk.Combobox(row, values=options, width=28, font=('Segoe UI', 10))
                 e.set(presets.get(key, options[0] if options else ''))
                 entries[key] = (e, ftype, None)
-                e.pack(side='left', padx=6, fill='x', expand=True)
+                e.pack(side='left', padx=6)
             elif ftype == 'combo_other':
                 options = default if isinstance(default, list) else []
                 # Always include "Other" as a manual KPI entry
                 if "Other" not in options:
                     options = options + ["Other"]
-                e = ttk.Combobox(row, values=options, width=24, font=('Segoe UI', 10))
-                preset = presets.get(key, options[0] if options else '')
-                e.set(preset)
-                e.pack(side='left', padx=6, fill='x', expand=True)
+                e = ttk.Combobox(row, values=options, width=18, font=('Segoe UI', 10))
+                e.set(presets.get(key, options[0] if options else ''))
+                e.pack(side='left', padx=6)
 
-                other = ttk.Entry(row, width=24, font=('Segoe UI', 10))
+                other = tk.Entry(row, width=14, font=('Segoe UI', 10), relief='solid', bd=1)
 
                 def _toggle_other(_evt=None, _combo=e, _other=other):
                     if _combo.get().strip() == "Other":
@@ -5635,9 +4953,6 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
                         _other.pack_forget()
 
                 e.bind("<<ComboboxSelected>>", _toggle_other)
-                if preset and preset not in options:
-                    e.set("Other")
-                    other.insert(0, str(preset))
                 _toggle_other()
                 entries[key] = (e, ftype, other)
             elif ftype == 'combo_multi':
@@ -5647,35 +4962,32 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
                 checkbox_frame.pack(side='left', anchor='nw')
                 
                 checkbox_vars = {}
-                selected_items = []
-                if key in presets and presets[key]:
-                    selected_items = [x.strip() for x in str(presets[key]).split(',')]
-                for idx, opt in enumerate(options):
+                for opt in options:
                     var = tk.BooleanVar()
-                    var.set(opt in selected_items)
+                    # Check if this option is in presets (for editing)
+                    if key in presets and presets[key]:
+                        selected_items = [x.strip() for x in str(presets[key]).split(',')]
+                        var.set(opt in selected_items)
                     checkbox_vars[opt] = var
-                    cb = ttk.Checkbutton(checkbox_frame, text=opt, variable=var)
-                    cb.grid(row=idx // 3, column=idx % 3, sticky='w', padx=(0, 12), pady=2)
+                    cb = tk.Checkbutton(checkbox_frame, text=opt, variable=var, bg='white',
+                                       font=('Segoe UI', 9), anchor='w')
+                    cb.pack(anchor='w')
                 
                 entries[key] = (checkbox_vars, ftype, options)
             elif ftype == 'text':
-                text_frame = tk.Frame(row, bg='white')
-                text_frame.pack(side='left', padx=6, fill='x', expand=True)
-                e = tk.Text(text_frame, width=52, height=4, font=('Segoe UI', 10),
-                            relief='solid', bd=1, wrap='word', undo=True)
-                text_scroll = ttk.Scrollbar(text_frame, orient='vertical', command=e.yview)
-                e.configure(yscrollcommand=text_scroll.set)
-                if default not in (None, "") and not isinstance(default, list):
+                e = tk.Text(row, width=30, height=3, font=('Segoe UI', 10),
+                            relief='solid', bd=1)
+                if default and not isinstance(default, list):
                     e.insert('1.0', str(default))
                 entries[key] = (e, ftype, None)
-                e.pack(side='left', fill='x', expand=True)
-                text_scroll.pack(side='right', fill='y')
+                e.pack(side='left', padx=6)
             else:  # 'entry'
-                e = ttk.Entry(row, width=52, font=('Segoe UI', 10))
-                if default not in (None, "") and not isinstance(default, list):
+                e = tk.Entry(row, width=30, font=('Segoe UI', 10),
+                             relief='solid', bd=1)
+                if default and not isinstance(default, list):
                     e.insert(0, str(default))
                 entries[key] = (e, ftype, None)
-                e.pack(side='left', padx=6, fill='x', expand=True)
+                e.pack(side='left', padx=6)
 
         # Connect template bar to form entries
         if template_bar:
@@ -5683,11 +4995,10 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
 
         # Status label inside form (shows errors without closing)
         form_status = tk.Label(inner, text="", bg='white', fg=COLORS['danger'],
-                               font=('Segoe UI', 10), anchor='w',
-                               justify='left', wraplength=660)
-        form_status.pack(fill='x', pady=(8, 0))
+                               font=('Segoe UI', 9))
+        form_status.pack(anchor='w', pady=(4, 0))
 
-        def _save(event=None):
+        def _save():
             try:
                 vals = {}
                 for k, (widget, ftype, other_data) in entries.items():
@@ -5710,54 +5021,27 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
                     else:
                         vals[k] = widget.get().strip()
 
-                for k, meta in field_meta.items():
-                    value = str(vals.get(k, '') or '').strip()
-                    validate_form_value(
-                        k,
-                        meta['label'],
-                        value,
-                        required=meta['required'],
-                        numeric=meta['numeric'],
-                        options=meta['options'],
-                        strict_options=meta['strict_options'],
-                    )
-
                 on_save(vals)           # caller raises Exception on validation failure
                 # Unbind wheel before closing to avoid ghost callbacks
                 _unbind_wheel()
                 win.destroy()
-                messagebox.showinfo("Saved", "Record saved successfully!", parent=parent or self.root)
+                messagebox.showinfo("✅ Saved", "Record saved successfully!")
             except Exception as ex:
-                form_status.config(text=str(ex))
-            return 'break'
+                form_status.config(text=f"❌ {ex}")
 
-        btn_row = ttk.Frame(inner)
+        btn_row = tk.Frame(inner, bg='white')
         btn_row.pack(fill='x', pady=15)
-        ttk.Button(btn_row, text="Save", command=_save).pack(side='left', padx=4, ipadx=14)
-        ttk.Button(btn_row, text="Cancel", command=_cancel).pack(side='left', padx=4, ipadx=14)
-
-        def _focus_next(event):
-            nxt = event.widget.tk_focusNext()
-            if nxt:
-                nxt.focus_set()
-            return 'break'
-
-        for widget, ftype, _other in entries.values():
-            if ftype == 'combo_multi':
-                continue
-            if ftype != 'text':
-                try:
-                    widget.bind('<Return>', _focus_next, add='+')
-                except Exception:
-                    pass
-            try:
-                win.after_idle(widget.focus_set)
-                break
-            except Exception:
-                pass
-        win.bind('<Control-s>', _save)
-        win.bind('<Control-S>', _save)
-        win.bind('<Escape>', _cancel)
+        tk.Button(btn_row, text="💾 Save", command=_save,
+                  bg=COLORS['primary'], fg='white',
+                  font=('Segoe UI', 10, 'bold'),
+                  relief='flat', padx=20, pady=6,
+                  cursor='hand2').pack(side='left', padx=4)
+        tk.Button(btn_row, text="❌ Cancel",
+                  command=lambda: (_unbind_wheel(), win.destroy()),
+                  bg=COLORS['secondary'], fg='white',
+                  font=('Segoe UI', 10),
+                  relief='flat', padx=20, pady=6,
+                  cursor='hand2').pack(side='left', padx=4)
 
     # =========================================================================
     # UTILITIES
@@ -5787,134 +5071,55 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
     def _make_tree(self, parent, cols, row=0):
         """Create a treeview with working scrollbars. Returns the tree object.
         The tree frame is placed at the specified row."""
+        # Configure parent grid for this widget
         parent.grid_rowconfigure(row, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-
-        tree_container = ttk.Frame(parent)
+        
+        # Main frame for tree + scrollbars (uses grid internally)
+        tree_container = tk.Frame(parent, bg=COLORS['bg'], relief='sunken', bd=1)
         tree_container.grid(row=row, column=0, sticky='nsew', padx=8, pady=6)
-        tree_container.grid_rowconfigure(0, weight=1)
-        tree_container.grid_columnconfigure(0, weight=1)
-
-        tree = ttk.Treeview(
-            tree_container,
-            columns=cols,
-            show='headings',
-            selectmode='browse'
-        )
-
+        tree_container.grid_propagate(True)  # Allow frame to shrink/expand
+        
+        # Grid configuration for tree_container (4x2 grid)
+        tree_container.grid_rowconfigure(0, weight=1)  # Tree row
+        tree_container.grid_rowconfigure(1, weight=0)  # H-scrollbar row
+        tree_container.grid_columnconfigure(0, weight=1)  # Tree column
+        tree_container.grid_columnconfigure(1, weight=0)  # V-scrollbar column
+        
+        # Create treeview with no fixed height - let it expand
+        tree = ttk.Treeview(tree_container, columns=cols, show='headings')
+        
+        # Configure columns
         for c in cols:
-            tree.heading(c, text=c, anchor='w')
-            tree.column(c, width=max(110, len(c) * 12), minwidth=90,
-                        anchor='w', stretch=False)
-
+            tree.heading(c, text=c)
+            tree.column(c, width=max(70, len(c)*10), minwidth=60)
+        
+        # Create and configure scrollbars
         vsb = ttk.Scrollbar(tree_container, orient='vertical', command=tree.yview)
         hsb = ttk.Scrollbar(tree_container, orient='horizontal', command=tree.xview)
         tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-
+        
+        # Place tree and scrollbars in grid
         tree.grid(row=0, column=0, sticky='nsew')
         vsb.grid(row=0, column=1, sticky='ns')
         hsb.grid(row=1, column=0, sticky='ew')
-        enable_tree_cell_selection(tree, hsb, vsb)
-
-        tree.bind('<Double-1>', lambda e, tr=tree: self._open_tree_row_details(tr, e), add='+')
-        tree.bind('<Return>', lambda e, tr=tree: self._open_tree_row_details(tr), add='+')
-        tree.bind('<Control-c>', lambda e, tr=tree: self._copy_selected_tree_row(tr), add='+')
-        tree.bind('<Control-C>', lambda e, tr=tree: self._copy_selected_tree_row(tr), add='+')
+        
         return tree
-
-    def _selected_tree_item(self, tree):
-        active = getattr(tree, '_active_cell', None)
-        if active and tree.exists(active[0]):
-            return active[0]
-        selection = tree.selection()
-        if selection:
-            return selection[0]
-        focus = tree.focus()
-        return focus if focus else None
-
-    def _open_tree_row_details(self, tree, event=None):
-        if event is not None and tree.identify_region(event.x, event.y) not in ('cell', 'tree'):
-            return
-        item = self._selected_tree_item(tree)
-        if not item:
-            return
-
-        cols = list(tree['columns'])
-        values = list(tree.item(item, 'values'))
-        lines = []
-        for idx, col in enumerate(cols):
-            heading = tree.heading(col).get('text') or col
-            if heading == '':
-                heading = col
-            value = values[idx] if idx < len(values) else ''
-            lines.append(f"{heading}\n{value if value not in (None, '') else '-'}")
-
-        win = tk.Toplevel(self.root)
-        win.title("Record Details")
-        set_app_icon(win)
-        fit_window_to_screen(win, 760, 560, min_w=560, min_h=380)
-        win.configure(bg=COLORS['bg'])
-
-        txt = scrolledtext.ScrolledText(
-            win,
-            wrap='word',
-            font=('Segoe UI', 10),
-            bg='white',
-            fg=COLORS['dark'],
-            relief='flat',
-            padx=14,
-            pady=12
-        )
-        txt.pack(fill='both', expand=True, padx=10, pady=10)
-        txt.insert('1.0', "\n\n".join(lines))
-        txt.configure(state='disabled')
-
-        btns = ttk.Frame(win)
-        btns.pack(fill='x', padx=10, pady=(0, 10))
-        ttk.Button(btns, text="Copy", command=lambda: self._copy_text("\n\n".join(lines))).pack(side='left')
-        ttk.Button(btns, text="Close", command=win.destroy).pack(side='right')
-
-    def _copy_text(self, text):
-        try:
-            self.root.clipboard_clear()
-            self.root.clipboard_append(text)
-        except Exception:
-            pass
-
-    def _copy_selected_tree_row(self, tree):
-        active = getattr(tree, '_active_cell', None)
-        if active and tree.exists(active[0]):
-            heading = getattr(tree, '_active_cell_heading', active[1])
-            value = getattr(tree, '_active_cell_value', tree.set(active[0], active[1]))
-            self._copy_text(f"{heading}: {value}")
-            return 'break'
-        item = self._selected_tree_item(tree)
-        if not item:
-            return 'break'
-        cols = list(tree['columns'])
-        values = list(tree.item(item, 'values'))
-        row = []
-        for idx, col in enumerate(cols):
-            heading = tree.heading(col).get('text') or col
-            value = values[idx] if idx < len(values) else ''
-            row.append(f"{heading}: {value}")
-        self._copy_text(" | ".join(row))
-        return 'break'
 
     def _delete_record(self, table, tree):
         if not has_permission(self.role, 'delete'):
             messagebox.showerror("🚫 Access Denied",
                                  "You don't have permission to delete records.")
             return
-        item = self._selected_tree_item(tree)
-        if not item:
+        sel = tree.selection()
+        if not sel:
             messagebox.showwarning("Select", "Please select a record to delete")
             return
-        row_id = tree.item(item)['values'][0]
+        row_id = tree.item(sel[0])['values'][0]
         if messagebox.askyesno("🗑️ Confirm Delete",
                                 f"Delete record #{row_id} from {table}?\nThis cannot be undone."):
             Database.execute(f"DELETE FROM {table} WHERE id=?", (row_id,))
-            tree.delete(item)
+            tree.delete(sel[0])
             messagebox.showinfo("✅ Deleted", f"Record #{row_id} deleted.")
             self._build_dashboard_content()
 
@@ -5942,9 +5147,9 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
 
     def _quick_search(self):
         win = tk.Toplevel(self.root)
-        win.title("Find")
+        win.title("🔍 Global Search")
         set_app_icon(win)
-        fit_window_to_screen(win, 1180, 620, min_w=800, min_h=420)
+        fit_window_to_screen(win, 860, 560, min_w=600, min_h=350)
         win.grab_set()
         win.configure(bg=COLORS['bg'])
 
@@ -5953,21 +5158,14 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
         sf.pack(fill='x', padx=12)
         tk.Label(sf, text="🔍", bg=COLORS['bg'],
                  font=('Segoe UI', 14)).pack(side='left', padx=(0, 6))
-        q = ttk.Entry(sf, font=('Segoe UI', 12))
+        q = tk.Entry(sf, font=('Segoe UI', 12), relief='solid', bd=1,
+                     bg='white', insertwidth=2)
         q.pack(side='left', fill='x', expand=True, ipady=5)
         q.focus_set()
-        tk.Label(sf, text="Sort", bg=COLORS['bg'], fg=COLORS['secondary'],
-                 font=('Segoe UI', 10)).pack(side='left', padx=(10, 4))
-        category_var = tk.StringVar(value="All")
-        category = ttk.Combobox(
-            sf, textvariable=category_var, state='readonly', width=20,
-            values=("All", "Rent Requirement", "Rent Availability", "Sale Requirement", "Sale Availability")
-        )
-        category.pack(side='left')
 
         status_lbl = tk.Label(
             win,
-            text="Find by name, contact, property, location, budget, facilities, or remarks.",
+            text="Type any name, phone, location, status, amount, note, ID, or workflow stage.",
             bg=COLORS['bg'], fg=COLORS['secondary'],
             font=('Segoe UI', 9), anchor='w'
         )
@@ -5979,22 +5177,15 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
         res_frame.grid_rowconfigure(0, weight=1)
         res_frame.grid_columnconfigure(0, weight=1)
 
-        cols = (
-            'Type', 'Sr No.', 'Date', 'Name', 'Client Status', 'Broker', 'Contact No.',
-            'Property Requirement', 'Property Availability', 'Size', 'Budget/Rent/Demand',
-            'Floor', 'Location', 'Facilities', 'Remarks'
-        )
+        cols = ('Source', 'ID', 'Name', 'Contact / Detail', 'Location / Match')
         tree = ttk.Treeview(res_frame, columns=cols, show='headings', height=18)
         for c in cols:
             tree.heading(c, text=c)
-            tree.column(c, width=120, minwidth=70)
-        tree.column('Type', width=130)
+            tree.column(c, width=100, minwidth=60)
+        tree.column('Source', width=90)
         tree.column('Name', width=180)
-        tree.column('Contact No.', width=130)
-        tree.column('Property Requirement', width=160)
-        tree.column('Property Availability', width=160)
-        tree.column('Facilities', width=180)
-        tree.column('Remarks', width=220)
+        tree.column('Contact / Detail', width=160)
+        tree.column('Location / Match', width=220)
 
         vsb = ttk.Scrollbar(res_frame, orient='vertical', command=tree.yview)
         hsb = ttk.Scrollbar(res_frame, orient='horizontal', command=tree.xview)
@@ -6002,20 +5193,37 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
         tree.grid(row=0, column=0, sticky='nsew')
         vsb.grid(row=0, column=1, sticky='ns')
         hsb.grid(row=1, column=0, sticky='ew')
-        enable_tree_cell_selection(tree, hsb, vsb)
 
         sources = [
-            ("Rent Requirement", "rent_requirements"),
-            ("Rent Availability", "rent_availability"),
-            ("Sale Requirement", "sale_requirements"),
-            ("Sale Availability", "sale_availability"),
+            ("Rent Req", "rent_requirements",
+             ("client_name", "property_requires", "property_type"),
+             ("contact", "contact_phone"),
+             ("location", "budget", "budget_min", "budget_max", "workflow_stage", "status", "remarks", "notes")),
+            ("Rent Av", "rent_availability",
+             ("owner_name", "property_availability", "property_type"),
+             ("contact", "contact_phone"),
+             ("location", "monthly_rent", "workflow_stage", "status", "remarks", "notes")),
+            ("Sale Req", "sale_requirements",
+             ("client_name", "property_requires", "property_type"),
+             ("contact", "contact_phone"),
+             ("location", "budget", "budget_min", "budget_max", "workflow_stage", "status", "remarks", "description")),
+            ("Sale Av", "sale_availability",
+             ("owner_name", "property_availability", "property_type"),
+             ("contact", "contact_phone"),
+             ("location", "demand", "asking_price", "workflow_stage", "status", "remarks", "description")),
+            ("Client", "clients",
+             ("client_name",),
+             ("phone", "email", "cnic"),
+             ("address", "client_type", "status", "notes")),
+            ("Property", "properties",
+             ("title", "property_code", "owner_name"),
+             ("owner_contact",),
+             ("location", "property_type", "status", "monthly_rent", "sale_price", "description")),
+            ("Employee", "employees",
+             ("full_name", "employee_id"),
+             ("phone", "contact_phone", "email", "cnic"),
+             ("department", "position", "status", "address", "notes")),
         ]
-        if self._is_staff_restricted():
-            allowed_sources = {
-                "rent_requirements", "rent_availability",
-                "sale_requirements", "sale_availability",
-            }
-            sources = [src for src in sources if src[1] in allowed_sources]
 
         def quote_ident(name):
             return '"' + str(name).replace('"', '""') + '"'
@@ -6026,44 +5234,6 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
                 if field in keys and row[field] not in (None, ""):
                     return str(row[field])
             return "-"
-
-        def result_values(src, table, row):
-            if table in ("rent_requirements", "sale_requirements"):
-                return (
-                    src,
-                    first_value(row, ("id",)),
-                    first_value(row, ("date", "date_created", "created_at")),
-                    first_value(row, ("client_name",)),
-                    first_value(row, ("client_status",)) if "client_status" in row.keys() else "Client",
-                    first_value(row, ("broker", "preferred_broker", "client_broker")),
-                    first_value(row, ("contact", "contact_phone")),
-                    first_value(row, ("property_requires", "property_type")),
-                    "",
-                    first_value(row, ("size", "size_beds", "sq_ft", "sq_ft_yards")),
-                    first_value(row, ("budget", "budget_max", "budget_min")),
-                    first_value(row, ("floor", "floor_no")),
-                    first_value(row, ("location",)),
-                    first_value(row, ("facilities",)),
-                    first_value(row, ("remarks", "description", "notes")),
-                )
-            amount_fields = ("monthly_rent",) if table == "rent_availability" else ("demand", "asking_price")
-            return (
-                src,
-                first_value(row, ("id",)),
-                first_value(row, ("date", "date_posted", "created_at")),
-                first_value(row, ("owner_name",)),
-                "",
-                first_value(row, ("broker", "posted_by_broker", "client_broker", "posted_by")),
-                first_value(row, ("contact", "contact_phone")),
-                "",
-                first_value(row, ("property_availability", "property_type")),
-                first_value(row, ("size", "size_beds", "sq_ft", "sq_ft_yards")),
-                first_value(row, amount_fields),
-                first_value(row, ("floor", "floor_no")),
-                first_value(row, ("location",)),
-                first_value(row, ("facilities",)),
-                first_value(row, ("remarks", "description", "notes")),
-            )
 
         def match_summary(row, searchable_cols, term_lower):
             matches = []
@@ -6088,22 +5258,18 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
             pattern = f"%{term_lower}%"
             total = 0
             errors = []
-            selected = category_var.get()
-            active_sources = [src for src in sources if selected == "All" or src[0] == selected]
-            status_lbl.config(text=f"Finding \"{term}\"...")
+            status_lbl.config(text=f"Searching for \"{term}\"...")
             win.update_idletasks()
 
             try:
                 conn = Database.get_connection()
             except Exception as exc:
-                tree.insert('', 'end', values=(
-                    "Error", "-", "", "Database unavailable", "", "", "", "", "", "", "", "", "", "", str(exc)
-                ))
+                tree.insert('', 'end', values=("Error", "-", "Database unavailable", str(exc), DB_PATH))
                 status_lbl.config(text=f"Search failed: {exc}")
                 return
 
             try:
-                for src, table in active_sources:
+                for src, table, label_fields, contact_fields, location_fields in sources:
                     try:
                         table_info = conn.execute(f"PRAGMA table_info({quote_ident(table)})").fetchall()
                         searchable_cols = [col['name'] for col in table_info]
@@ -6114,20 +5280,20 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
                             f"LOWER(CAST(COALESCE({quote_ident(col)}, '') AS TEXT)) LIKE ?"
                             for col in searchable_cols
                         )
-                        source_text = f"{src} {table.replace('_', ' ')}".lower()
-                        if term_lower in source_text:
-                            sql = f"SELECT * FROM {quote_ident(table)} ORDER BY id DESC LIMIT 60"
-                            params = ()
-                        else:
-                            sql = (
-                                f"SELECT * FROM {quote_ident(table)} "
-                                f"WHERE {where_sql} "
-                                f"ORDER BY id DESC LIMIT 60"
-                            )
-                            params = tuple([pattern] * len(searchable_cols))
+                        sql = (
+                            f"SELECT * FROM {quote_ident(table)} "
+                            f"WHERE {where_sql} "
+                            f"ORDER BY id DESC LIMIT 60"
+                        )
+                        params = tuple([pattern] * len(searchable_cols))
                         rows = conn.execute(sql, params).fetchall()
                         for r in rows:
-                            tree.insert('', 'end', values=result_values(src, table, r))
+                            tree.insert('', 'end', values=(
+                                src,
+                                r['id'] if 'id' in r.keys() else '-',
+                                first_value(r, label_fields),
+                                first_value(r, contact_fields),
+                                match_summary(r, searchable_cols, term_lower) or first_value(r, location_fields)))
                             total += 1
                     except Exception as exc:
                         errors.append(f"{src}: {exc}")
@@ -6136,24 +5302,24 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
 
             if total == 0:
                 tree.insert('', 'end', values=(
-                    "No match", "-", "", "No records found", "", "", "", "", "", "", "", "", "", "",
-                    f"Try another name, phone, location, amount, facility, or remark for \"{term}\"."
+                    "No match", "-", "No records found",
+                    "Try another name, phone, location, ID, status, amount, or note.",
+                    f"Searched all CRM tables for \"{term}\""
                 ))
-                message = f"No records matched \"{term}\" in {selected}."
+                message = f"No records matched \"{term}\". Search completed across all CRM tables."
             else:
-                message = f"Found {total} result{'s' if total != 1 else ''} for \"{term}\" in {selected}"
+                message = f"🔍 Found {total} result{'s' if total != 1 else ''} for \"{term}\""
             if errors:
                 message += f" | Skipped {len(errors)} source{'s' if len(errors) != 1 else ''}: " + "; ".join(errors[:2])
             status_lbl.config(text=message)
 
-        tk.Button(sf, text="Find", command=do_search,
+        tk.Button(sf, text="Search", command=do_search,
                   bg=COLORS['primary'], fg='white',
                   font=('Segoe UI', 10, 'bold'),
                   relief='flat', padx=16, pady=4, cursor='hand2').pack(side='left', padx=(6, 0))
 
         q.bind('<Return>', do_search)
         q.bind('<KeyRelease>', lambda e: do_search() if len(q.get().strip()) >= 2 else None)
-        category.bind('<<ComboboxSelected>>', lambda e: do_search() if q.get().strip() else None)
         # Allow double-click to close and show record detail
         def on_double_click(e):
             sel = tree.selection()
@@ -6266,7 +5432,7 @@ Backup/Restore     ✓            ✓       ✗         ✗       ✗
 
 🔄 TIPS
   • Use Edit > Refresh to reload data
-  • Use Find (Edit menu) to find records fast
+  • Use Quick Search (Edit menu) to find records fast
   • Backup database regularly from File menu
 """
         txt.insert('1.0', guide)
@@ -6308,7 +5474,7 @@ def main():
         return
 
     main_root = tk.Tk()
-    main_root.crm_app = RealEstateCRM(main_root, login.current_user)
+    app = RealEstateCRM(main_root, login.current_user)
     main_root.mainloop()
 
 

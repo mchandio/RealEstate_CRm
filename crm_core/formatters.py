@@ -13,7 +13,7 @@ def parse_currency(value: object) -> float | None:
     text = str(value).strip()
     if not text:
         return None
-    cleaned = re.sub(r"(?i)\brs\.?\b", "", text).replace(",", "").strip()
+    cleaned = re.sub(r"(?i)\brs\.?\s*", "", text).replace(",", "").strip()
     try:
         return float(cleaned)
     except ValueError:

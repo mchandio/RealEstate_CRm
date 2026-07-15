@@ -1,0 +1,33 @@
+DataSource supported services:
+('com.sun.star.sdb.DataSource', 'com.sun.star.sdb.DocumentDataSource')
+DataSource implementation
+  ImplementationName=com.sun.star.comp.dba.ODatabaseSource
+PropertySetInfo
+property count 13
+  Info <Type instance []com.sun.star.beans.PropertyValue (<Enum instance com.sun.star.uno.TypeClass ('SEQUENCE')>)>
+  IsPasswordRequired <Type instance boolean (<Enum instance com.sun.star.uno.TypeClass ('BOOLEAN')>)>
+  IsReadOnly <Type instance boolean (<Enum instance com.sun.star.uno.TypeClass ('BOOLEAN')>)>
+  LayoutInformation <Type instance []com.sun.star.beans.PropertyValue (<Enum instance com.sun.star.uno.TypeClass ('SEQUENCE')>)>
+  Name <Type instance string (<Enum instance com.sun.star.uno.TypeClass ('STRING')>)>
+  NumberFormatsSupplier <Type instance com.sun.star.util.XNumberFormatsSupplier (<Enum instance com.sun.star.uno.TypeClass ('INTERFACE')>)>
+  Password <Type instance string (<Enum instance com.sun.star.uno.TypeClass ('STRING')>)>
+  Settings <Type instance com.sun.star.beans.XPropertySet (<Enum instance com.sun.star.uno.TypeClass ('INTERFACE')>)>
+  SuppressVersionColumns <Type instance boolean (<Enum instance com.sun.star.uno.TypeClass ('BOOLEAN')>)>
+  TableFilter <Type instance []string (<Enum instance com.sun.star.uno.TypeClass ('SEQUENCE')>)>
+  TableTypeFilter <Type instance []string (<Enum instance com.sun.star.uno.TypeClass ('SEQUENCE')>)>
+  URL <Type instance string (<Enum instance com.sun.star.uno.TypeClass ('STRING')>)>
+  User <Type instance string (<Enum instance com.sun.star.uno.TypeClass ('STRING')>)>
+Current property values
+  Info = ()
+  IsPasswordRequired = False
+  IsReadOnly = False
+  LayoutInformation = ()
+  Name = 
+  NumberFormatsSupplier = pyuno object (com.sun.star.util.XNumberFormatsSupplier)0xeed6c78{implementationName=com.sun.star.uno.util.numbers.SvNumberFormatsSupplierServiceObject, supportedServices={com.sun.star.util.NumberFormatsSupplier}, supportedInterfaces={com.sun.star.util.XNumberFormatsSupplier,com.sun.star.lang.XUnoTunnel,com.sun.star.lang.XTypeProvider,com.sun.star.uno.XWeak,com.sun.star.uno.XAggregation}}
+  Password = 
+  Settings = pyuno object (com.sun.star.beans.XPropertyBag)0xeed1e28{implementationName=com.sun.star.comp.comphelper.OPropertyBag, supportedServices={com.sun.star.beans.PropertyBag}, supportedInterfaces={com.sun.star.beans.XPropertyBag,com.sun.star.util.XModifiable,com.sun.star.lang.XServiceInfo,com.sun.star.lang.XInitialization,com.sun.star.container.XSet,com.sun.star.lang.XTypeProvider,com.sun.star.uno.XWeak,com.sun.star.beans.XPropertySet,com.sun.star.beans.XMultiPropertySet,com.sun.star.beans.XFastPropertySet,com.sun.star.beans.XPropertySetOption,com.sun.star.beans.XPropertyState}}
+  SuppressVersionColumns = True
+  TableFilter = ('%',)
+  TableTypeFilter = ()
+  URL = jdbc:
+  User = 
