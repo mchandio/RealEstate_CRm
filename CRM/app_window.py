@@ -6,7 +6,6 @@ from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QScrollArea, QStackedWidget, QTabWidget, QFrame, QLabel, QLineEdit, QTextEdit, QComboBox, QDateEdit, QCheckBox, QPushButton, QTableWidget, QTableWidgetItem, QDialog, QHeaderView, QAbstractItemView, QMessageBox, QSizePolicy, QFileDialog, QProgressBar, QListWidget, QListWidgetItem, QDialogButtonBox
 from typing import Any, Callable
 from datetime import datetime
-import json
 import os
 import subprocess
 import sys
@@ -14,9 +13,9 @@ import sys
 from crm_core import DB_PATH
 from crm_core.reports import ReportService
 from crm_core.intelligence import IntelligenceService
-from crm_core.constants import normalize_contact_role, normalize_availability_status, has_permission, CLOSED_AVAILABILITY_ARCHIVES
+from crm_core.constants import normalize_availability_status, has_permission, CLOSED_AVAILABILITY_ARCHIVES
 from CRM.constants import DEAL_TABLES, GLOBAL_SEARCH_SOURCE_LABELS, GLOBAL_SEARCH_MONEY_COLUMNS, GLOBAL_SEARCH_HIDDEN_COLUMNS, LOCAL_SERVICE_PORT, LAN_WEB_PORT, LAN_WEB_ENABLED, LAN_WEB_HOST, PY_DATE_STORAGE_FORMAT, DATE_STORAGE_FORMAT, DATE_DISPLAY_FORMAT, SF_TABLES, WF_TABLES, PHASE1_TABLES, READ_ONLY_API_TABLES, PARENT_CHILD_TABLES, LONG_TEXT_COLUMN_KEYS, BACKUP_DIR, OUTPUT_DIR, FIND_SOURCE_PERMISSIONS, GLOBAL_SEARCH_SOURCES, FIND_SOURCE_ORDER, FIND_RESULT_COLUMNS, FIND_ALL_COLUMN_ORDER, FIND_ALL_COLUMN_LABELS, DATE_FORM_KEYS, PHONE_FORM_KEYS, EMAIL_FORM_KEYS, CNIC_FORM_KEYS, PERCENT_FORM_KEYS, DEAL_STAGES, COMMON_AREAS, FACILITY_OPTIONS, FLOOR_OPTIONS, PROPERTY_TYPE_OPTIONS, MEASUREMENT_UNIT_OPTIONS, EXPENSE_CATEGORIES, crm_app_icon, crm_logo_path, is_admin_role
-from CRM.utils import money, format_date_display, setting_lines, safe_float, gen_id, parse_currency, quote_identifier, PhoneValidator, DateUtils, is_date_key, is_valid_number_text, configure_legal_landscape_printer, parse_facilities, parse_multi_options, multi_option_overlap, normalize_text, safe_int, allowed_find_sources, normalize_setting_lines
+from CRM.utils import money, format_date_display, setting_lines, safe_float, gen_id, quote_identifier, allowed_find_sources
 from CRM.modules import DealModule, FinancialModule, EmployeesModule, SuccessFactorsModule, WorkflowModule, ReportsModule, AIInsightsModule, UsersModule, SettingsModule, DataTablePage, PhaseOneDesk
 from CRM.models import ColumnSpec, TableSpec, FieldSpec
 from CRM.dialogs.login import LoginDialog
