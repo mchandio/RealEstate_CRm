@@ -2,9 +2,11 @@
 fastapi
 uvicorn[standard]
 slowapi
-# Database
+
+# Database - SQLite (default) + PostgreSQL (cloud)
 sqlalchemy
 aiosqlite
+psycopg2-binary
 
 # Auth
 python-jose[cryptography]
@@ -21,3 +23,9 @@ openpyxl
 
 # Modern desktop UI preview
 PySide6
+
+# Date utilities
+python-dateutil
+
+# Secure password hashing (bcrypt)
+bcrypt>=4.0.0

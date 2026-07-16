@@ -1,0 +1,30 @@
+# Render Deployment Configuration
+# ================================
+# This file tells Render how to deploy your Real Estate CRM.
+#
+# PostgreSQL provides persistent data that survives restarts and redeploys.
+# The free PostgreSQL tier gives you 90 days, then $7/month.
+
+services:
+  - type: web
+    name: real-estate-crm
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      # DATABASE_URL is automatically set by the PostgreSQL addon below
+      # If you want to use SQLite instead, uncomment the line below:
+      # - key: CRM_DB_PATH
+      #   value: /app/data/real_estate_crm.db
+
+# PostgreSQL database addon - provides persistent data
+# Free tier: 90 days, then $7/month
+databases:
+  - name: crm-database
+    plan: free
+    databaseName: crm
+    user: crm_user
