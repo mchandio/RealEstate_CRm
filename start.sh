@@ -805,9 +805,9 @@ main() {
 
     install_dependencies
 
-    initialize_database
-
     health_check
+
+    initialize_database
 
     check_display
 
