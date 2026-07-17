@@ -891,22 +891,7 @@ health_check() {
 
 }
 
-###############################################################################
-# Startup Timer
-###############################################################################
 
-SCRIPT_START_TIME=$(date +%s)
-
-print_runtime() {
-
-    local end
-    end=$(date +%s)
-
-    local elapsed=$((end - SCRIPT_START_TIME))
-
-    info "Startup completed in ${elapsed}s"
-
-}
 
 ###############################################################################
 # Final Startup Sequence
