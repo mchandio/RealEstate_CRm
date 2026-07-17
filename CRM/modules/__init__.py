@@ -1,6 +1,8 @@
 """CRM Feature modules."""
 
 from CRM.modules.data_table import DataTablePage
+from CRM.modules.installments import InstallmentModule
+from CRM.modules.commissions import CommissionModule
 from CRM.modules.deals import DealModule
 from CRM.modules.phase_one import (
     PhaseOneSectionSpec, PhaseOneForm, PhaseOneSectionPage,

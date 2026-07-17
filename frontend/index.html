@@ -7,21 +7,22 @@
 <link rel="stylesheet" href="styles.css?v=2026071401">
 </head>
 <body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
 <div id="app">
   <div id="login-screen" class="screen">
     <div class="glass-card login-card">
       <h1>Real Estate CRM</h1>
       <p class="subtitle">Sign in to your account</p>
-      <form id="login-form">
+      <form id="login-form" aria-label="Login form">
         <div class="field">
-          <label>Username</label>
-          <input type="text" id="login-username" placeholder="Enter username" required>
+          <label for="login-username">Username</label>
+          <input type="text" id="login-username" placeholder="Enter username" required autocomplete="username" aria-required="true">
         </div>
         <div class="field">
-          <label>Password</label>
-          <input type="password" id="login-password" placeholder="Enter password" required>
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="Enter password" required autocomplete="current-password" aria-required="true">
         </div>
-        <div id="login-error" class="error-msg"></div>
+        <div id="login-error" class="error-msg" aria-live="polite"></div>
         <button type="submit" class="btn btn-primary">Sign In</button>
       </form>
     </div>
@@ -29,8 +30,8 @@
 
   <div id="main-screen" class="screen hidden">
     <!-- Top Menu Bar -->
-    <div id="top-menu-bar">
-      <div class="menu-item" data-menu="file" onclick="toggleMenu(event, 'file')">
+    <div id="top-menu-bar" role="menubar" aria-label="Application menu">
+      <div class="menu-item" data-menu="file" aria-expanded="false" onclick="toggleMenu(event, 'file')">
         File
         <div class="menu-dropdown" id="menu-file">
           <div class="menu-dropdown-item" data-action="new" onclick="menuAction(event, 'new')">New Record</div>
@@ -42,7 +43,7 @@
           <div class="menu-dropdown-item" data-action="exit" onclick="menuAction(event, 'exit')">Exit</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="view" onclick="toggleMenu(event, 'view')">
+      <div class="menu-item" data-menu="view" aria-expanded="false" onclick="toggleMenu(event, 'view')">
         View
         <div class="menu-dropdown" id="menu-view">
           <div class="menu-dropdown-item" data-action="toggle-sidebar" onclick="menuAction(event, 'toggle-sidebar')">Toggle Sidebar</div>
@@ -50,7 +51,7 @@
           <div class="menu-dropdown-item" data-action="refresh" onclick="menuAction(event, 'refresh')">Refresh</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="dealings" onclick="toggleMenu(event, 'dealings')">
+      <div class="menu-item" data-menu="dealings" aria-expanded="false" onclick="toggleMenu(event, 'dealings')">
         Dealings
         <div class="menu-dropdown" id="menu-dealings">
           <div class="menu-dropdown-item" data-action="rent-requirements" onclick="menuAction(event, 'rent-requirements')">Rent Requirements</div>
@@ -61,7 +62,7 @@
           <div class="menu-dropdown-item" data-action="sale-dealings" onclick="menuAction(event, 'sale-dealings')">Sale Dealings</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="records" onclick="toggleMenu(event, 'records')">
+      <div class="menu-item" data-menu="records" aria-expanded="false" onclick="toggleMenu(event, 'records')">
         Records
         <div class="menu-dropdown" id="menu-records">
           <div class="menu-dropdown-item" data-action="properties" onclick="menuAction(event, 'properties')">Properties</div>
@@ -71,7 +72,7 @@
           <div class="menu-dropdown-item" data-action="financial" onclick="menuAction(event, 'financial')">Financial</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="reports" onclick="toggleMenu(event, 'reports')">
+      <div class="menu-item" data-menu="reports" aria-expanded="false" onclick="toggleMenu(event, 'reports')">
         Reports
         <div class="menu-dropdown" id="menu-reports">
           <div class="menu-dropdown-item" data-action="all-reports" onclick="menuAction(event, 'all-reports')">All Reports</div>
@@ -79,7 +80,7 @@
           <div class="menu-dropdown-item separator" data-action="export-reports" onclick="menuAction(event, 'export-reports')">Export Reports</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="success" onclick="toggleMenu(event, 'success')">
+      <div class="menu-item" data-menu="success" aria-expanded="false" onclick="toggleMenu(event, 'success')">
         SuccessFactors
         <div class="menu-dropdown" id="menu-success">
           <div class="menu-dropdown-item" data-action="employees-sf" onclick="menuAction(event, 'employees-sf')">Employees</div>
@@ -88,7 +89,7 @@
           <div class="menu-dropdown-item" data-action="compensation" onclick="menuAction(event, 'compensation')">Compensation</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="workflow" onclick="toggleMenu(event, 'workflow')">
+      <div class="menu-item" data-menu="workflow" aria-expanded="false" onclick="toggleMenu(event, 'workflow')">
         Workflow
         <div class="menu-dropdown" id="menu-workflow">
           <div class="menu-dropdown-item" data-action="approvals" onclick="menuAction(event, 'approvals')">Approvals</div>
@@ -96,7 +97,7 @@
           <div class="menu-dropdown-item" data-action="audit" onclick="menuAction(event, 'audit')">Audit Trail</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="tools" onclick="toggleMenu(event, 'tools')">
+      <div class="menu-item" data-menu="tools" aria-expanded="false" onclick="toggleMenu(event, 'tools')">
         Tools
         <div class="menu-dropdown" id="menu-tools">
           <div class="menu-dropdown-item" data-action="find" onclick="menuAction(event, 'find')">Find</div>
@@ -105,7 +106,7 @@
           <div class="menu-dropdown-item" data-action="settings" onclick="menuAction(event, 'settings')">Settings</div>
         </div>
       </div>
-      <div class="menu-item" data-menu="help" onclick="toggleMenu(event, 'help')">
+      <div class="menu-item" data-menu="help" aria-expanded="false" onclick="toggleMenu(event, 'help')">
         Help
         <div class="menu-dropdown" id="menu-help">
           <div class="menu-dropdown-item" data-action="documentation" onclick="menuAction(event, 'documentation')">Documentation</div>
@@ -117,7 +118,7 @@
     <div class="main-layout">
       <!-- Mobile Header -->
       <div class="mobile-header" style="display:none;">
-        <button class="mobile-menu-btn" id="mobile-menu-toggle" title="Open menu">&#9776;</button>
+        <button class="mobile-menu-btn" id="mobile-menu-toggle" title="Open menu" aria-label="Open navigation menu">&#9776;</button>
         <h2>Real Estate CRM</h2>
       </div>
 
@@ -136,7 +137,7 @@
         <h3>Administrator</h3>
         <span id="user-badge"></span>
       </div>
-      <nav id="sidebar-nav">
+      <nav id="sidebar-nav" aria-label="Main navigation" role="navigation">
         <div class="nav-section">QT CRM</div>
         <a class="nav-item active" data-tab="phase1"><span class="icon icon-phase1"></span> QT_CRM Desk</a>
         <div class="nav-section">Overview</div>
@@ -439,11 +440,11 @@
     </div>
 
   <!-- Sidebar Toggle Button -->
-  <button id="sidebar-toggle" title="Toggle Sidebar">&#9664;</button>
+  <button id="sidebar-toggle" title="Toggle Sidebar" aria-label="Toggle sidebar navigation" aria-expanded="true">&#9664;</button>
 
   <div id="modal-overlay" class="hidden">
-  <div id="modal" class="glass-card">
-    <div id="modal-header"><h3 id="modal-title">Form</h3><button id="modal-close">&times;</button></div>
+  <div id="modal" class="glass-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div id="modal-header"><h3 id="modal-title">Form</h3><button id="modal-close" aria-label="Close dialog">&times;</button></div>
     <div id="modal-body"></div>
     <div id="modal-footer"><button id="modal-cancel" class="btn">Cancel</button><button id="modal-save" class="btn btn-primary">Save</button></div>
   </div>

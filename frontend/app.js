@@ -29,9 +29,13 @@ const ROLE_TABS = {
 
 // === INLINE MENU HANDLERS (defined at top for reliability) ===
 function toggleMenu(event, menuName) {
+  event.stopPropagation();
   // Find all menu items and close their dropdowns
   document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('active'));
-  document.querySelectorAll('.menu-item.open').forEach(i => i.classList.remove('open'));
+  document.querySelectorAll('.menu-item.open').forEach(i => {
+    i.classList.remove('open');
+    i.setAttribute('aria-expanded', 'false');
+  });
   
   // Open the clicked menu
   const menuItem = event.currentTarget;
@@ -39,14 +43,18 @@ function toggleMenu(event, menuName) {
   if (dropdown) {
     dropdown.classList.add('active');
     menuItem.classList.add('open');
+    menuItem.setAttribute('aria-expanded', 'true');
   }
 }
 
 function menuAction(event, action) {
   event.stopPropagation();
-  // Close all menus
+  // Close all menus and reset aria-expanded
   document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('active'));
-  document.querySelectorAll('.menu-item.open').forEach(i => i.classList.remove('open'));
+  document.querySelectorAll('.menu-item.open').forEach(i => {
+    i.classList.remove('open');
+    i.setAttribute('aria-expanded', 'false');
+  });
   // Execute the action
   if (typeof handleMenuAction === 'function') {
     handleMenuAction(action);
@@ -966,6 +974,95 @@ $('modal-close').addEventListener('click', closeModal);
 $('modal-cancel').addEventListener('click', closeModal);
 $('modal-overlay').addEventListener('click', e => { if (e.target === $('modal-overlay')) closeModal(); });
 $('modal-save').onclick = saveForm;
+
+// Keyboard navigation: Escape closes modal and menus
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    // Close modal if open
+    if (!$('modal-overlay').classList.contains('hidden')) {
+      closeModal();
+      e.preventDefault();
+      return;
+    }
+    // Close any open menu dropdowns
+    document.querySelectorAll('.menu-dropdown.active').forEach(d => d.classList.remove('active'));
+    document.querySelectorAll('.menu-item.open').forEach(i => i.classList.remove('open'));
+    // Close mobile sidebar if open
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && sidebar.classList.contains('open')) {
+      sidebar.classList.remove('open');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (overlay) overlay.classList.remove('visible');
+    }
+  }
+});
+
+// Keyboard navigation for menu bar
+document.querySelectorAll('.menu-item').forEach(item => {
+  item.setAttribute('tabindex', '0');
+  item.setAttribute('role', 'menuitem');
+  item.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      item.click();
+    }
+    if (e.key === 'ArrowRight') {
+      const next = item.nextElementSibling;
+      if (next && next.classList.contains('menu-item')) next.focus();
+    }
+    if (e.key === 'ArrowLeft') {
+      const prev = item.previousElementSibling;
+      if (prev && prev.classList.contains('menu-item')) prev.focus();
+    }
+  });
+});
+
+// Make menu dropdown containers role=menu, and items keyboard accessible
+document.querySelectorAll('.menu-dropdown').forEach(d => d.setAttribute('role', 'menu'));
+document.querySelectorAll('.menu-dropdown-item').forEach(item => {
+  item.setAttribute('tabindex', '0');
+  item.setAttribute('role', 'menuitem');
+  item.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      item.click();
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = item.nextElementSibling;
+      if (next) next.focus();
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = item.previousElementSibling;
+      if (prev) prev.focus();
+    }
+  });
+});
+
+// Make nav items keyboard accessible
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.setAttribute('tabindex', '0');
+  item.setAttribute('role', 'link');
+  item.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      item.click();
+    }
+  });
+});
+
+// Add ARIA roles to sub-tabs and table tabs
+document.querySelectorAll('.sub-tab, .table-tab').forEach(tab => {
+  tab.setAttribute('tabindex', '0');
+  tab.setAttribute('role', 'tab');
+  tab.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      tab.click();
+    }
+  });
+});
 
 function sidebarIsManuallyCollapsed() {
   return document.getElementById('sidebar-toggle')?.classList.contains('sidebar-collapsed') || false;

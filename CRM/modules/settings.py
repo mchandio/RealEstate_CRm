@@ -5,6 +5,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QScrollArea, QFrame, QLabel, QLineEdit, QTextEdit, QCheckBox, QComboBox, QPushButton, QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView, QDialog, QMessageBox, QSizePolicy
+from datetime import datetime
 from typing import Any
 
 # ─── CRM module imports ───
@@ -149,15 +150,48 @@ class SettingsModule(QWidget):
         return self._scroll_page(body)
 
     def save(self) -> None:
+        """Save settings with audit logging (Section 23 recommendation)."""
+        changes: dict[str, str] = {}
         for key, widget in self.inputs.items():
-            self.main.services.settings_set(key, widget.text().strip())
-        self.main.services.settings_set("phase1_theme", self.theme.currentText())
+            old_value = self.main.services.settings_get(key)
+            new_value = widget.text().strip()
+            if old_value != new_value:
+                changes[key] = f"{old_value!r} -> {new_value!r}"
+            self.main.services.settings_set(key, new_value)
+        old_theme = self.main.services.settings_get("phase1_theme")
+        new_theme = self.theme.currentText()
+        if old_theme != new_theme:
+            changes["phase1_theme"] = f"{old_theme!r} -> {new_theme!r}"
+        self.main.services.settings_set("phase1_theme", new_theme)
         for key, widget in self.list_inputs.items():
-            self.main.services.settings_set(key, widget.values_text())
+            old_value = self.main.services.settings_get(key)
+            new_value = widget.values_text()
+            if old_value != new_value:
+                changes[key] = f"list updated ({len(widget.values_text().splitlines())} items)"
+            self.main.services.settings_set(key, new_value)
+        # Audit log for settings changes (Section 23 - use audit_logs table)
+        if changes:
+            try:
+                self.main.services.execute(
+                    """INSERT INTO audit_logs
+                       (table_name, record_id, action, username, summary, details, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        "app_settings",
+                        None,
+                        "settings_update",
+                        self.main.current_user.get("username", "system"),
+                        f"Updated {len(changes)} setting(s)",
+                        str(changes),
+                        datetime.now().isoformat(),
+                    ),
+                )
+            except Exception:
+                pass  # Don't fail save on audit error
         self.main.reload_settings()
         self.main.reload_dynamic_specs()
         self.main.refresh_all_pages()
-        QMessageBox.information(self, "Settings", "Settings saved.")
+        QMessageBox.information(self, "Settings", "Settings saved." + (f" ({len(changes)} changes logged)" if changes else ""))
 
     def refresh(self) -> None:
         for _label, key in self.KEYS:

@@ -8,12 +8,153 @@ from crm_core.constants import CLOSED_AVAILABILITY_ARCHIVES, FLOOR_OPTIONS, FACI
 from CRM.utils import quote_identifier
 
 def ensure_database() -> None:
-    """Reuse the existing production schema initializer and migrations."""
-    import professional_crm
-
-    professional_crm.DB_PATH = str(DB_PATH)
-    professional_crm.Database.init_all()
+    """Create core tables (if missing) then run Qt-schema migrations."""
+    _create_core_tables()
     ensure_qt_schema()
+
+
+def _create_core_tables() -> None:
+    """Create the foundational tables that professional_crm.Database.init_all() used to handle."""
+    import hashlib as _hashlib
+    with sqlite3.connect(str(DB_PATH)) as conn:
+        cur = conn.cursor()
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA busy_timeout=30000")
+        cur.execute("PRAGMA foreign_keys=ON")
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS app_settings
+            (key TEXT PRIMARY KEY, value TEXT)""")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users
+            (id INTEGER PRIMARY KEY AUTOINCREMENT,
+             username TEXT UNIQUE NOT NULL,
+             password_hash TEXT NOT NULL,
+             full_name TEXT, email TEXT,
+             role TEXT DEFAULT 'Staff',
+             is_active INTEGER DEFAULT 1,
+             created_at TIMESTAMP, last_login TIMESTAMP)""")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS login_logs
+            (id INTEGER PRIMARY KEY AUTOINCREMENT,
+             user_id INTEGER, login_time TIMESTAMP, status TEXT)""")
+
+        for tbl, cols in [
+            ("rent_requirements",
+             "date TEXT, client_name TEXT, contact TEXT, property_requires TEXT, "
+             "size TEXT, measurement TEXT, budget REAL, floor TEXT, location TEXT, "
+             "option1 TEXT, option2 TEXT, facilities TEXT, client_broker TEXT, "
+             "bachelor_family TEXT, remarks TEXT, "
+             "workflow_stage TEXT DEFAULT 'Lead', priority TEXT DEFAULT 'Medium', "
+             "next_follow_up TEXT, assigned_to TEXT, last_contacted TEXT, "
+             "deal_probability REAL DEFAULT 10.0, expected_close_value REAL DEFAULT 0, "
+             "closed_at TIMESTAMP, lost_reason TEXT, "
+             "property_type TEXT, sq_ft_yards TEXT, budget_min REAL, budget_max REAL, "
+             "maintenance REAL, notes TEXT, status TEXT DEFAULT 'Open', "
+             "approval_status TEXT DEFAULT 'Pending', approval_comment TEXT, "
+             "approved_by TEXT, approved_at TIMESTAMP, "
+             "created_by TEXT, created_at TIMESTAMP"),
+            ("rent_availability",
+             "date TEXT, owner_name TEXT, contact TEXT, property_availability TEXT, "
+             "size TEXT, measurement TEXT, monthly_rent REAL, floor TEXT, location TEXT, "
+             "deposit REAL, maintenance_charge REAL, facilities TEXT, "
+             "client_broker TEXT, bachelor_family TEXT, remarks TEXT, "
+             "workflow_stage TEXT DEFAULT 'Lead', priority TEXT DEFAULT 'Medium', "
+             "next_follow_up TEXT, assigned_to TEXT, last_contacted TEXT, "
+             "deal_probability REAL DEFAULT 10.0, expected_close_value REAL DEFAULT 0, "
+             "closed_at TIMESTAMP, lost_reason TEXT, "
+             "property_type TEXT, sq_ft_yards TEXT, posted_by TEXT, notes TEXT, "
+             "status TEXT DEFAULT 'Available', "
+             "approval_status TEXT DEFAULT 'Pending', approval_comment TEXT, "
+             "approved_by TEXT, approved_at TIMESTAMP, "
+             "created_by TEXT, created_at TIMESTAMP"),
+            ("sale_requirements",
+             "date TEXT, client_name TEXT, contact TEXT, property_requires TEXT, "
+             "size TEXT, measurement TEXT, budget REAL, floor TEXT, location TEXT, "
+             "option1 TEXT, option2 TEXT, facilities TEXT, client_broker TEXT, "
+             "bachelor_family TEXT, remarks TEXT, "
+             "workflow_stage TEXT DEFAULT 'Lead', priority TEXT DEFAULT 'Medium', "
+             "next_follow_up TEXT, assigned_to TEXT, last_contacted TEXT, "
+             "deal_probability REAL DEFAULT 10.0, expected_close_value REAL DEFAULT 0, "
+             "closed_at TIMESTAMP, lost_reason TEXT, "
+             "approval_status TEXT DEFAULT 'Pending', approval_comment TEXT, "
+             "approved_by TEXT, approved_at TIMESTAMP, "
+             "created_by TEXT, created_at TIMESTAMP"),
+            ("sale_availability",
+             "date TEXT, owner_name TEXT, contact TEXT, property_availability TEXT, "
+             "size TEXT, measurement TEXT, demand REAL, floor TEXT, location TEXT, "
+             "option1 TEXT, option2 TEXT, facilities TEXT, client_broker TEXT, "
+             "bachelor_family TEXT, remarks TEXT, "
+             "workflow_stage TEXT DEFAULT 'Lead', priority TEXT DEFAULT 'Medium', "
+             "next_follow_up TEXT, assigned_to TEXT, last_contacted TEXT, "
+             "deal_probability REAL DEFAULT 10.0, expected_close_value REAL DEFAULT 0, "
+             "closed_at TIMESTAMP, lost_reason TEXT, "
+             "approval_status TEXT DEFAULT 'Pending', approval_comment TEXT, "
+             "approved_by TEXT, approved_at TIMESTAMP, "
+             "created_by TEXT, created_at TIMESTAMP"),
+            ("income_transactions",
+             "transaction_date TEXT, income_type TEXT, amount REAL, "
+             "tenant_name TEXT, description TEXT, receipt_no TEXT, "
+             "payment_method TEXT DEFAULT 'Cash', "
+             "created_by TEXT, created_at TIMESTAMP"),
+            ("expense_transactions",
+             "transaction_date TEXT, expense_category TEXT, amount REAL, "
+             "vendor_name TEXT, description TEXT, invoice_no TEXT, "
+             "payment_method TEXT DEFAULT 'Cash', "
+             "created_by TEXT, created_at TIMESTAMP"),
+            ("employees",
+             "employee_id TEXT, full_name TEXT, cnic TEXT, phone TEXT, email TEXT, "
+             "position TEXT, department TEXT, hire_date TEXT, base_salary REAL, "
+             "commission_rate REAL DEFAULT 5.0, status TEXT DEFAULT 'Active', "
+             "address TEXT, notes TEXT, created_at TIMESTAMP"),
+            ("attendance",
+             "employee_id INTEGER, date TEXT, check_in TEXT, check_out TEXT, "
+             "status TEXT DEFAULT 'Present', notes TEXT"),
+            ("salary_payments",
+             "employee_id INTEGER, payment_date TEXT, month TEXT, year TEXT, "
+             "base_salary REAL, bonus REAL DEFAULT 0, deductions REAL DEFAULT 0, "
+             "net_salary REAL, payment_method TEXT, notes TEXT, created_at TIMESTAMP"),
+            ("properties",
+             "property_code TEXT, title TEXT, property_type TEXT, "
+             "status TEXT DEFAULT 'Available', owner_name TEXT, owner_contact TEXT, "
+             "location TEXT, area TEXT, floor TEXT, monthly_rent REAL, sale_price REAL, "
+             "maintenance_charge REAL, facilities TEXT, description TEXT, "
+             "created_at TIMESTAMP"),
+            ("clients",
+             "client_name TEXT, cnic TEXT, phone TEXT, email TEXT, "
+             "address TEXT, client_type TEXT DEFAULT 'Tenant', "
+             "notes TEXT, status TEXT DEFAULT 'Active', created_at TIMESTAMP"),
+        ]:
+            cur.execute(f"CREATE TABLE IF NOT EXISTS {tbl} (id INTEGER PRIMARY KEY AUTOINCREMENT, {cols})")
+
+        conn.commit()
+
+        # Seed default admin user if none exist
+        cur.execute("SELECT COUNT(*) as cnt FROM users")
+        if cur.fetchone()[0] == 0:
+            pwd_hash = _hashlib.sha256("admin".encode()).hexdigest()
+            cur.execute(
+                "INSERT INTO users (username, password_hash, full_name, email, role, is_active, created_at) "
+                "VALUES (?,?,?,?,?,1,?)",
+                ("admin", pwd_hash, "Administrator", "admin@company.com",
+                 "Super Admin", datetime.now().isoformat()),
+            )
+            conn.commit()
+
+        # Seed default settings if empty
+        cur.execute("SELECT COUNT(*) as cnt FROM app_settings")
+        if cur.fetchone()[0] == 0:
+            defaults = {
+                "company_name": "Real Estate Management",
+                "company_address": "Karachi, Pakistan",
+                "currency": "PKR",
+                "currency_symbol": "Rs.",
+                "date_format": "DD/MM/YYYY",
+                "phase1_theme": "Light",
+            }
+            for k, v in defaults.items():
+                cur.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?,?)", (k, v))
+            conn.commit()
 
 
 def ensure_qt_schema() -> None:

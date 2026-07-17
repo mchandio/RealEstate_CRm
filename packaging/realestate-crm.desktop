@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Real Estate CRM
+Comment=Professional Real Estate Customer Relationship Management System
+Comment[ur_PK]=پیشہ ورانہ رئیل اسٹیٹ کسٹمر ریلیشن شپ مینجمنٹ سسٹم
+Exec=/opt/realestate-crm/start.sh
+Icon=/opt/realestate-crm/realestate-crm.png
+Terminal=false
+Categories=Office;Finance;ProjectManagement;
+Keywords=crm;realestate;property;management;
+StartupNotify=true
+StartupWMClass=RealEstateCRM
+MimeType=text/csv;
+X-GNOME-UsesNotifications=true

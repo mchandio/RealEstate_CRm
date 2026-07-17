@@ -296,6 +296,7 @@ textarea {
   flex: 1;
   padding: 0 12px 0 0;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 .nav-section {
   margin: 18px 0 12px 14px;
@@ -598,6 +599,7 @@ textarea {
 
 .data-grid-container {
   overflow-x: auto;
+  overflow-y: auto;
 }
 
 .data-grid-container table {
@@ -618,12 +620,13 @@ th {
   text-align: left;
   font-weight: 800;
   color: #1f3350;
-  white-space: normal;
+  white-space: nowrap;
   overflow-wrap: anywhere;
   word-break: break-word;
   line-height: 1.3;
   border-bottom: 1px solid var(--line-strong);
 }
+
 .select-col {
   width: 44px;
   min-width: 44px;
@@ -850,9 +853,112 @@ td.actions button { padding: 5px 9px; font-size: 0.75rem; }
 .report-command .field { min-width: 150px; }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #edf2ef; }
 ::-webkit-scrollbar-thumb { background: #b7c5be; border-radius: 999px; border: 2px solid #edf2ef; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Focus-visible for keyboard navigation — scoped to interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Remove outline for mouse users */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skip-to-content link for keyboard users */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  background: var(--primary);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 0 0 6px 6px;
+  z-index: 10000;
+  font-weight: 700;
+  text-decoration: none;
+  transition: top 0.2s;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* Touch target minimum 44px for mobile accessibility */
+@media (pointer: coarse) {
+  .btn-sm,
+  .menu-item,
+  .menu-dropdown-item,
+  .sub-tab,
+  .table-tab,
+  .nav-item,
+  .secondary-toolbar .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .field input,
+  .field select,
+  .field textarea,
+  #login-form input,
+  .find-panel input,
+  .find-panel select,
+  .toolbar-input {
+    min-height: 44px;
+  }
+}
+
+/* High-contrast focus ring for buttons */
+.btn:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(22, 112, 100, 0.25);
+}
+
+/* Nav items keyboard focus */
+.nav-item:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: -2px;
+}
+
+/* Menu items keyboard focus */
+.menu-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.menu-dropdown-item:focus-visible {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Screen reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
 
 @media (max-width: 960px) {
   .screen { display: block; }
@@ -1522,6 +1628,7 @@ body {
 
 #sidebar-nav {
   padding: 0 4px 0 0;
+  overflow-x: hidden;
 }
 
 .nav-section {
@@ -2042,7 +2149,7 @@ th,
   border-bottom: 1px solid var(--line-strong);
   font-size: 0.7rem;
   text-transform: uppercase;
-  white-space: normal;
+  white-space: nowrap;
   overflow-wrap: anywhere;
   word-break: break-word;
   line-height: 1.3;

@@ -20,12 +20,16 @@ from CRM.protocols import AppHost
 from CRM.dialogs.record import RecordDialog
 
 class DataTablePage(QWidget):
+    PAGE_SIZES = [50, 100, 250, 500, 1000]
+    DEFAULT_PAGE_SIZE = 100
+
     def __init__(
         self,
         host: AppHost,
         spec: TableSpec,
         *,
         extra_buttons: list[tuple[str, Callable[[], None], str]] | None = None,
+        page_size: int = DEFAULT_PAGE_SIZE,
     ):
         super().__init__()
         self.host = host
@@ -34,6 +38,10 @@ class DataTablePage(QWidget):
         self.rows: list[dict] = []
         self.extra_buttons = extra_buttons or []
         self.text_filter_inputs: dict[str, QLineEdit] = {}
+        # Pagination state
+        self._page_size = page_size
+        self._current_page = 0
+        self._total_count = 0
         self._build()
         self.refresh()
 
@@ -149,6 +157,33 @@ class DataTablePage(QWidget):
         tools.addWidget(export)
         layout.addLayout(tools)
 
+        # Pagination controls
+        pagination = QHBoxLayout()
+        self._page_info_label = QLabel("")
+        self._page_info_label.setObjectName("SelectionCount")
+        self._page_first_btn = QPushButton("First")
+        self._page_first_btn.clicked.connect(self._page_first)
+        self._page_prev_btn = QPushButton("Prev")
+        self._page_prev_btn.clicked.connect(self._page_prev)
+        self._page_next_btn = QPushButton("Next")
+        self._page_next_btn.clicked.connect(self._page_next)
+        self._page_last_btn = QPushButton("Last")
+        self._page_last_btn.clicked.connect(self._page_last)
+        self._page_size_combo = QComboBox()
+        for size in self.PAGE_SIZES:
+            self._page_size_combo.addItem(f"{size} / page", size)
+        self._page_size_combo.setCurrentText(f"{self._page_size} / page")
+        self._page_size_combo.currentIndexChanged.connect(self._page_size_changed)
+        pagination.addWidget(self._page_info_label)
+        pagination.addStretch(1)
+        pagination.addWidget(self._page_first_btn)
+        pagination.addWidget(self._page_prev_btn)
+        pagination.addWidget(self._page_next_btn)
+        pagination.addWidget(self._page_last_btn)
+        pagination.addWidget(QLabel("  Per page: "))
+        pagination.addWidget(self._page_size_combo)
+        layout.addLayout(pagination)
+
         self.table = ExcelTableWidget()
         configure_multi_select_table(self.table)
         if can_edit:
@@ -198,6 +233,8 @@ class DataTablePage(QWidget):
         self.end_date.setDate(self.end_date.minimumDate())
         for widget in widgets:
             widget.blockSignals(False)
+        # Reset pagination to first page when clearing filters
+        self._current_page = 0
         self.refresh()
 
     def _is_date_filter_key(self, key: str) -> bool:
@@ -230,6 +267,65 @@ class DataTablePage(QWidget):
             "(" + " OR ".join(f"LOWER(CAST(COALESCE({quoted}, '') AS TEXT)) LIKE ?" for _term in terms) + ")"
         )
         params.extend([f"%{term}%" for term in terms])
+
+    # =========================================================================
+    # Query Building Helper (DRY Fix - eliminates duplication between refresh/export)
+    # =========================================================================
+
+    def _build_query(self) -> tuple[str, list[Any], str, list[str], set[str]]:
+        """Build the WHERE clause, params, sort key, columns, and available columns.
+
+        Returns:
+            (where_sql, params, sort_key, columns, all_columns) tuple
+        
+        This helper eliminates the DRY violation between refresh() and export_csv()
+        by centralizing the filter/sort query construction.
+        """
+        all_columns = self.services.table_columns(self.spec.table)
+        columns = [col.key for col in self.spec.columns if col.key in all_columns]
+        if not columns:
+            columns = [col.key for col in self.spec.columns]
+        where_parts: list[str] = []
+        params: list[Any] = []
+        # Soft delete filter
+        if "is_deleted" in all_columns:
+            where_parts.append("COALESCE(is_deleted, 0)=0")
+        # Closed availability filter
+        closed_rule = CLOSED_AVAILABILITY_ARCHIVES.get(self.spec.table)
+        if closed_rule and "status" in all_columns:
+            where_parts.append("LOWER(COALESCE(status, ''))<>LOWER(?)")
+            params.append(closed_rule[0])
+        # Keyword search
+        keyword = self.keyword_input.text().strip()
+        if keyword:
+            searchable = [
+                col for col in all_columns
+                if col not in {"password_hash", "is_deleted", "deleted_by", "deleted_at"}
+            ]
+            if searchable:
+                where_parts.append(
+                    "(" + " OR ".join(f"CAST({quote_identifier(col)} AS TEXT) LIKE ?" for col in searchable) + ")"
+                )
+                params.extend([f"%{keyword}%"] * len(searchable))
+        # Text filters (broker_contacts)
+        for column, input_widget in self.text_filter_inputs.items():
+            self._append_text_filter(where_parts, params, all_columns, column, input_widget.text())
+        # Date range filter
+        date_key = self._date_filter_key(all_columns)
+        start = self._active_date(self.start_date)
+        end = self._active_date(self.end_date)
+        if date_key and start:
+            where_parts.append(f"date({quote_identifier(date_key)}) >= date(?)")
+            params.append(start)
+        if date_key and end:
+            where_parts.append(f"date({quote_identifier(date_key)}) <= date(?)")
+            params.append(end)
+        # Sort
+        sort_key = self.sort_combo.currentData() or self._default_sort_key()
+        if sort_key not in all_columns:
+            sort_key = "id" if "id" in all_columns else columns[0]
+        where_sql = " WHERE " + " AND ".join(where_parts) if where_parts else ""
+        return where_sql, params, sort_key, columns, all_columns
 
     def selected_row_indexes(self) -> list[int]:
         return selected_table_row_indexes(self.table, len(self.rows))
@@ -311,51 +407,24 @@ class DataTablePage(QWidget):
         QMessageBox.information(self, "Copied", f"{len(rows)} selected row(s) copied to clipboard.")
 
     def refresh(self) -> None:
-        available_columns = self.services.table_columns(self.spec.table)
-        columns = [col.key for col in self.spec.columns if col.key in available_columns]
-        if not columns:
-            columns = [col.key for col in self.spec.columns]
-        where_parts: list[str] = []
-        params: list[Any] = []
-        if "is_deleted" in available_columns:
-            where_parts.append("COALESCE(is_deleted, 0)=0")
-        closed_rule = CLOSED_AVAILABILITY_ARCHIVES.get(self.spec.table)
-        if closed_rule and "status" in available_columns:
-            where_parts.append("LOWER(COALESCE(status, ''))<>LOWER(?)")
-            params.append(closed_rule[0])
-        keyword = self.keyword_input.text().strip()
-        if keyword:
-            searchable = [
-                col for col in available_columns
-                if col not in {"password_hash", "is_deleted", "deleted_by", "deleted_at"}
-            ]
-            if searchable:
-                where_parts.append(
-                    "(" + " OR ".join(f"CAST({quote_identifier(col)} AS TEXT) LIKE ?" for col in searchable) + ")"
-                )
-                params.extend([f"%{keyword}%"] * len(searchable))
-        for column, input_widget in self.text_filter_inputs.items():
-            self._append_text_filter(where_parts, params, available_columns, column, input_widget.text())
-        date_key = self._date_filter_key(available_columns)
-        start = self._active_date(self.start_date)
-        end = self._active_date(self.end_date)
-        if date_key and start:
-            where_parts.append(f"date({quote_identifier(date_key)}) >= date(?)")
-            params.append(start)
-        if date_key and end:
-            where_parts.append(f"date({quote_identifier(date_key)}) <= date(?)")
-            params.append(end)
-        sort_key = self.sort_combo.currentData() or self._default_sort_key()
-        if sort_key not in available_columns:
-            sort_key = "id" if "id" in available_columns else columns[0]
+        where_sql, params, sort_key, columns, all_columns = self._build_query()
         direction = self.direction_combo.currentData() or "DESC"
+        # Phase 7: Count total rows for pagination
+        count_sql = f"SELECT COUNT(*) AS total FROM {quote_identifier(self.spec.table)}{where_sql}"
+        count_row = self.services.fetch_one(count_sql, tuple(params))
+        self._total_count = int(count_row["total"]) if count_row else 0
+        # Clamp current page to valid range
+        max_page = max(0, (self._total_count - 1) // self._page_size) if self._total_count > 0 else 0
+        if self._current_page > max_page:
+            self._current_page = max_page
+        # Phase 7: Paginated SELECT with LIMIT/OFFSET
         select_columns = ", ".join(quote_identifier(col) for col in columns)
-        sql = f"SELECT {select_columns} FROM {quote_identifier(self.spec.table)}"
-        if where_parts:
-            sql += " WHERE " + " AND ".join(where_parts)
+        sql = f"SELECT {select_columns} FROM {quote_identifier(self.spec.table)}{where_sql}"
         sql += f" ORDER BY {quote_identifier(sort_key)} {direction}"
-        if sort_key != "id" and "id" in available_columns:
+        if sort_key != "id" and "id" in all_columns:
             sql += f", {quote_identifier('id')} DESC"
+        offset = self._current_page * self._page_size
+        sql += f" LIMIT {self._page_size} OFFSET {offset}"
         self.rows = self.services.fetch_all(sql, tuple(params))
         display_columns = responsive_table_columns(self.spec.table, self.spec.columns)
         self.table.setColumnCount(len(display_columns))
@@ -380,6 +449,7 @@ class DataTablePage(QWidget):
                 self.table.setRowHeight(row_idx, 42)
         apply_responsive_table_layout(self.table)
         self.update_selection_label()
+        self._update_pagination_controls()
 
     def add_record(self) -> None:
         while True:
@@ -498,7 +568,17 @@ class DataTablePage(QWidget):
         )
         if not path:
             return
-        rows = self.selected_rows() or self.rows
+        selected = self.selected_rows()
+        if selected:
+            rows = selected
+        else:
+            # Export ALL filtered rows (not just current page) when no selection
+            where_sql, params, sort_key, columns, _all_columns = self._build_query()
+            direction = self.direction_combo.currentData() or "DESC"
+            select_columns = ", ".join(quote_identifier(col) for col in columns)
+            sql = f"SELECT {select_columns} FROM {quote_identifier(self.spec.table)}{where_sql}"
+            sql += f" ORDER BY {quote_identifier(sort_key)} {direction}"
+            rows = self.services.fetch_all(sql, tuple(params))
         with open(path, "w", newline="", encoding="utf-8") as handle:
             writer = csv.writer(handle)
             writer.writerow([col.label for col in self.spec.columns])
@@ -506,6 +586,58 @@ class DataTablePage(QWidget):
                 writer.writerow([row.get(col.key, "") for col in self.spec.columns])
         QMessageBox.information(self, "Exported", f"Saved {len(rows)} row(s) to:\n{path}")
         self.host.update_status_bar(f"{self.spec.title} exported")
+
+    # =========================================================================
+    # Pagination Methods (Phase 7: Performance Optimization)
+    # =========================================================================
+
+    def _page_first(self) -> None:
+        """Navigate to the first page."""
+        self._current_page = 0
+        self.refresh()
+
+    def _page_prev(self) -> None:
+        """Navigate to the previous page."""
+        if self._current_page > 0:
+            self._current_page -= 1
+            self.refresh()
+
+    def _page_next(self) -> None:
+        """Navigate to the next page."""
+        max_page = max(0, (self._total_count - 1) // self._page_size)
+        if self._current_page < max_page:
+            self._current_page += 1
+            self.refresh()
+
+    def _page_last(self) -> None:
+        """Navigate to the last page."""
+        self._current_page = max(0, (self._total_count - 1) // self._page_size)
+        self.refresh()
+
+    def _page_size_changed(self, _index: int) -> None:
+        """Handle page size change."""
+        new_size = self._page_size_combo.currentData()
+        if new_size and new_size != self._page_size:
+            self._page_size = new_size
+            self._current_page = 0
+            self.refresh()
+
+    def _update_pagination_controls(self) -> None:
+        """Update pagination buttons and page info label."""
+        total_pages = max(1, (self._total_count + self._page_size - 1) // self._page_size)
+        start_row = self._current_page * self._page_size + 1
+        end_row = min((self._current_page + 1) * self._page_size, self._total_count)
+        if self._total_count == 0:
+            self._page_info_label.setText("No records")
+        else:
+            self._page_info_label.setText(
+                f"Showing {start_row}-{end_row} of {self._total_count} records "
+                f"(Page {self._current_page + 1} of {total_pages})"
+            )
+        self._page_first_btn.setEnabled(self._current_page > 0)
+        self._page_prev_btn.setEnabled(self._current_page > 0)
+        self._page_next_btn.setEnabled(self._current_page < total_pages - 1)
+        self._page_last_btn.setEnabled(self._current_page < total_pages - 1)
 
     def _apply_defaults(self, vals: dict[str, Any], *, is_new: bool) -> None:
         now = datetime.now()

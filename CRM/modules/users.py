@@ -33,12 +33,16 @@ class UsersModule(QWidget):
         remove.clicked.connect(self.remove_user)
         activate = QPushButton("Toggle Active")
         activate.clicked.connect(self.toggle_active)
+        unlock = QPushButton("Unlock Account")
+        unlock.setObjectName("AccentButton")
+        unlock.clicked.connect(self.unlock_account)
         refresh = QPushButton("Refresh")
         refresh.clicked.connect(self.refresh)
         controls.addWidget(add)
         controls.addWidget(edit)
         controls.addWidget(remove)
         controls.addWidget(activate)
+        controls.addWidget(unlock)
         controls.addStretch(1)
         controls.addWidget(refresh)
         layout.addLayout(controls)
@@ -119,19 +123,76 @@ class UsersModule(QWidget):
         self.main.services.execute("UPDATE users SET is_active=0 WHERE id=?", (row["id"],))
         self.refresh()
 
+    def unlock_account(self) -> None:
+        """Unlock account and reset failed login attempts for selected user(s)."""
+        rows = self.selected_rows()
+        if not rows:
+            QMessageBox.information(self, "Select", "Select one or more users to unlock.")
+            return
+        
+        # Filter to only locked/active users
+        locked_users = [r for r in rows if r.get("is_active")]
+        if not locked_users:
+            QMessageBox.information(self, "Unlock", "No active users selected to unlock.")
+            return
+        
+        if len(locked_users) == 1:
+            msg = f"Unlock account for {locked_users[0]['username']} and reset failed attempts?"
+        else:
+            msg = f"Unlock accounts for {len(locked_users)} users and reset failed attempts?"
+        
+        ask = QMessageBox.question(self, "Unlock Account(s)", msg)
+        if ask != QMessageBox.Yes:
+            return
+        
+        for user in locked_users:
+            self.main.services.execute(
+                "UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?",
+                (user["id"],)
+            )
+        
+        self.refresh()
+        QMessageBox.information(self, "Unlock", f"Successfully unlocked {len(locked_users)} account(s).")
+
     def refresh(self) -> None:
-        self.rows = self.main.services.fetch_all(
-            "SELECT id, username, full_name, email, role, is_active, last_login FROM users ORDER BY id"
-        )
-        headers = ["ID", "Username", "Full Name", "Email", "Role", "Active", "Last Login"]
+        # Try with lockout columns (migration 005+), fallback to basic query
+        try:
+            self.rows = self.main.services.fetch_all(
+                "SELECT id, username, full_name, email, role, is_active, last_login, failed_attempts, locked_until FROM users ORDER BY id"
+            )
+            has_lockout_cols = True
+        except Exception:
+            self.rows = self.main.services.fetch_all(
+                "SELECT id, username, full_name, email, role, is_active, last_login FROM users ORDER BY id"
+            )
+            has_lockout_cols = False
+        
+        if has_lockout_cols:
+            headers = ["ID", "Username", "Full Name", "Email", "Role", "Active", "Last Login", "Failed Attempts", "Status"]
+        else:
+            headers = ["ID", "Username", "Full Name", "Email", "Role", "Active", "Last Login"]
+        
         self.table.setColumnCount(len(headers))
         self.table.setHorizontalHeaderLabels(headers)
         self.table.setRowCount(len(self.rows))
         for r, row in enumerate(self.rows):
-            values = [row["id"], row["username"], row["full_name"], row["email"], row["role"], "Yes" if row["is_active"] else "No", row["last_login"] or ""]
+            if has_lockout_cols:
+                failed = row.get("failed_attempts") or 0
+                locked = row.get("locked_until") or ""
+                status = "Locked" if locked else (f"{failed} failed" if failed > 0 else "OK")
+                values = [row["id"], row["username"], row["full_name"], row["email"], row["role"], 
+                         "Yes" if row["is_active"] else "No", row["last_login"] or "", 
+                         str(failed), status]
+            else:
+                values = [row["id"], row["username"], row["full_name"], row["email"], row["role"], 
+                         "Yes" if row["is_active"] else "No", row["last_login"] or ""]
             for c, value in enumerate(values):
                 item = QTableWidgetItem(str(value or ""))
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                # Highlight locked accounts in red (column 8 is Status)
+                if has_lockout_cols and c == 8 and "Locked" in str(value):
+                    item.setForeground(QColor("#FF4444"))
+                    item.setFont(QFont("", -1, QFont.Weight.Bold))
                 self.table.setItem(r, c, item)
         self.table.resizeColumnsToContents()
         self.update_selection_label()

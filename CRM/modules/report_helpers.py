@@ -30,12 +30,20 @@ def build_financial_text(
     start_date: str | None = None,
     end_date: str | None = None,
 ) -> str:
-    """Generate a financial summary text report."""
+    """Generate a financial summary text report.
+
+    Now includes salary payments in P&L (Section 9 audit recommendation)
+    to prevent understated expenses.
+    """
     income_rows = _rows_in_date_range(services, "income_transactions", "transaction_date", start_date, end_date)
     expense_rows = _rows_in_date_range(services, "expense_transactions", "transaction_date", start_date, end_date)
+    # Include salary payments in expenses (Section 9: F-H1 fix)
+    salary_rows = _salary_rows_in_range(services, start_date, end_date)
     income = sum(safe_float(row.get("amount")) for row in income_rows)
     expenses = sum(safe_float(row.get("amount")) for row in expense_rows)
-    profit = income - expenses
+    salaries = sum(safe_float(row.get("net_salary")) for row in salary_rows)
+    total_expenses = expenses + salaries
+    profit = income - total_expenses
     income_by_type: dict[str, dict[str, float]] = {}
     for row in income_rows:
         key = str(row.get("income_type") or "Other")
@@ -69,13 +77,26 @@ def build_financial_text(
             lines.append(f"{key:<35} Qty:{int(bucket['qty']):>4} {money(bucket['total'], currency_symbol):>18}")
     else:
         lines.append("No expense records found for this period.")
+    # Salary section (Section 9: F-H1 fix - include salaries in P&L)
+    lines += ["", "SALARY PAYMENTS", "-" * 72]
+    if salary_rows:
+        for row in salary_rows:
+            name = row.get("full_name") or row.get("employee_name") or "Employee"
+            net = safe_float(row.get("net_salary"))
+            month = row.get("month", "")
+            year = row.get("year", "")
+            lines.append(f"{name[:35]:<35} {month} {year:<8} {money(net, currency_symbol):>18}")
+    else:
+        lines.append("No salary payments found for this period.")
     margin = (profit / income * 100) if income else 0
     lines += [
         "",
-        f"TOTAL EXPENSES: {money(expenses, currency_symbol)}",
+        f"TOTAL EXPENSES:  {money(expenses, currency_symbol)}",
+        f"TOTAL SALARIES:  {money(salaries, currency_symbol)}",
+        f"COMBINED COSTS:  {money(total_expenses, currency_symbol)}",
         "=" * 72,
-        f"NET PROFIT:     {money(profit, currency_symbol)}",
-        f"PROFIT MARGIN:  {margin:.1f}%",
+        f"NET PROFIT:      {money(profit, currency_symbol)}",
+        f"PROFIT MARGIN:   {margin:.1f}%",
         "=" * 72,
     ]
     return "\n".join(lines)
@@ -159,7 +180,42 @@ def get_report_for_kind(
         )
 
 
-# ── Internal helpers ──────────────────────────────────────────────────
+# -- Internal helpers ---------------------------------------------------
+
+
+def _salary_rows_in_range(
+    services: Any,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict]:
+    """Fetch salary payments joined with employee names, filtered by date range.
+
+    This function supports the P&L salary inclusion recommended in Section 9
+    of the engineering audit (finding F-H1).
+    """
+    rows = services.fetch_all(
+        """SELECT sp.id, e.full_name, sp.month, sp.year, sp.base_salary,
+                  sp.bonus, sp.deductions, sp.net_salary, sp.payment_method,
+                  sp.payment_date
+           FROM salary_payments sp
+           JOIN employees e ON sp.employee_id = e.id
+           ORDER BY sp.payment_date DESC, sp.id DESC"""
+    )
+    start = parse_py_date(start_date)
+    end = parse_py_date(end_date)
+    if not start and not end:
+        return rows
+    filtered: list[dict] = []
+    for row in rows:
+        row_date = parse_py_date(row.get("payment_date"))
+        if not row_date:
+            continue
+        if start and row_date.date() < start.date():
+            continue
+        if end and row_date.date() > end.date():
+            continue
+        filtered.append(row)
+    return filtered
 
 
 def _rows_in_date_range(

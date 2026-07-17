@@ -1,0 +1,92 @@
+#!/bin/bash
+set -e
+
+APP_DIR="/opt/realestate-crm"
+DATA_DIR="/var/lib/realestate-crm"
+LOG_DIR="/var/log/realestate-crm"
+VENV_DIR="$APP_DIR/.venv"
+CRM_USER="realestate-crm"
+
+echo "Real Estate CRM - Post-Install Configuration"
+echo "============================================"
+echo ""
+
+# --- Create system user ---
+if ! id -u "$CRM_USER" >/dev/null 2>&1; then
+    adduser --system --group --home "$DATA_DIR" --no-create-home --quiet "$CRM_USER"
+    echo "✓ Created system user: $CRM_USER"
+fi
+
+# --- Create directories ---
+mkdir -p "$DATA_DIR" "$LOG_DIR"
+echo "✓ Created data and log directories"
+
+# --- Set up virtual environment ---
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Creating Python virtual environment..."
+    python3 -m venv "$VENV_DIR"
+fi
+
+# --- Install dependencies ---
+echo "Installing Python dependencies..."
+"$VENV_DIR/bin/pip" install --upgrade pip -q
+"$VENV_DIR/bin/pip" install -r "$APP_DIR/requirements.txt" -q
+echo "✓ Dependencies installed"
+
+# --- Initialize database ---
+if [ ! -f "$DATA_DIR/real_estate_crm.db" ]; then
+    echo "Initializing database..."
+    cd "$APP_DIR"
+    "$VENV_DIR/bin/python" database_setup.py
+    # Symlink DB to app directory for compatibility
+    if [ ! -e "$APP_DIR/real_estate_crm.db" ]; then
+        ln -s "$DATA_DIR/real_estate_crm.db" "$APP_DIR/real_estate_crm.db"
+    fi
+    echo "✓ Database initialized"
+fi
+
+# --- Set permissions ---
+chown -R "$CRM_USER:$CRM_USER" "$APP_DIR" "$DATA_DIR" "$LOG_DIR"
+chmod -R 755 "$APP_DIR"
+chmod 775 "$DATA_DIR" "$LOG_DIR"
+echo "✓ Permissions set"
+
+# --- Enable systemd service ---
+if systemctl --version >/dev/null 2>&1; then
+    systemctl daemon-reload
+    systemctl enable realestate-crm.service || true
+    echo "✓ Systemd service enabled"
+    echo "  Start with: sudo systemctl start realestate-crm"
+    echo "  Status:     sudo systemctl status realestate-crm"
+fi
+
+# --- Install desktop launcher ---
+if [ -d "/usr/share/applications" ]; then
+    cp "$APP_DIR/realestate-crm.desktop" /usr/share/applications/
+    echo "✓ Desktop launcher installed"
+fi
+
+# --- Install icon ---
+if [ -d "/usr/share/icons/hicolor/256x256/apps" ]; then
+    cp "$APP_DIR/realestate-crm.png" /usr/share/icons/hicolor/256x256/apps/
+    gtk-update-icon-cache -q /usr/share/icons/hicolor/ 2>/dev/null || true
+    echo "✓ Icon installed"
+fi
+
+echo ""
+echo "============================================"
+echo "Installation Complete!"
+echo ""
+echo "Open the app from your applications menu:"
+echo "  Real Estate CRM"
+echo ""
+echo "Or start the server manually:"
+echo "  sudo systemctl start realestate-crm"
+echo ""
+echo "Access the web interface at:"
+echo "  http://localhost:6090"
+echo ""
+echo "Default login:"
+echo "  Username: admin"
+echo "  Password: admin"
+echo "============================================"

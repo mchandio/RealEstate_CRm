@@ -1,0 +1,35 @@
+Package: realestate-crm
+Version: 3.0.0
+Section: office
+Priority: optional
+Architecture: all
+Essential: no
+Depends: python3 (>= 3.10), python3-pip, python3-venv, sqlite3, adduser
+Recommends: python3-pyqt6 (>= 6.4) | python3-pyside6 (>= 6.6), xdg-utils
+Suggests: openssh-server, wireguard
+Installed-Size: 51200
+Maintainer: Muhammad Siddique <info@realestatecrm.com>
+Homepage: https://realestatecrm.com
+License: Proprietary
+Description: Real Estate CRM - Professional Property Management System
+ A comprehensive Customer Relationship Management system designed
+ specifically for real estate agencies and property managers.
+ .
+ Features:
+  * Rent & Sale deal management with pipeline tracking
+  * Property listings with availability management
+  * Client & broker contact management
+  * Financial tracking (income, expenses, profit/loss)
+  * Employee management with attendance & payroll
+  * SuccessFactors HR module (employee central, recruiting, performance)
+  * Workflow engine with approvals & audit trails
+  * AI-powered property matching & insights
+  * Multi-user web interface with role-based access
+  * Backup & restore functionality
+  * Data import/export (CSV, Excel)
+  * Dashboard with real-time analytics
+ .
+ The system runs as a web application on the local network.
+ Default admin credentials: admin / admin
+ .
+ Visit http://localhost:6090 after installation.

@@ -1,5 +1,4 @@
-import hashlib
-import hmac
+import logging
 import re
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
@@ -10,6 +9,9 @@ from sqlalchemy.orm import Session
 from backend.config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRY_HOURS
 from backend.database import get_db
 from backend.models import User
+from crm_core.auth import hash_password, verify_password
+
+logger = logging.getLogger("realestate_crm.auth")
 
 security = HTTPBearer(auto_error=False)
 
@@ -53,24 +55,7 @@ def normalize_role(role: str | None) -> str:
     return aliases.get(normalized, text)
 
 
-def hash_password(password: str) -> str:
-    # Keep backend-created users compatible with the Qt desktop login, which
-    # stores SHA-256 hashes in the shared SQLite database.
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
-
-def verify_password(password: str, hashed: str) -> bool:
-    hashed = str(hashed or "")
-    if re.fullmatch(r"[0-9a-fA-F]{64}", hashed):
-        expected = hashlib.sha256(password.encode("utf-8")).hexdigest()
-        return hmac.compare_digest(expected.lower(), hashed.lower())
-    try:
-        from passlib.context import CryptContext
-
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        return pwd_context.verify(password, hashed)
-    except Exception:
-        return False
 
 
 def create_access_token(data: dict) -> str:

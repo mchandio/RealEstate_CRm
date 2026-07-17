@@ -78,6 +78,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Add security headers to all responses.
+    
+    Implements security header recommendations from Section 10 of the
+    engineering audit to prevent clickjacking, MIME sniffing, and XSS.
+    HSTS is only sent over HTTPS to avoid browser issues in development.
+    """
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # Only send HSTS over HTTPS (not during local development)
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=3156000; includeSubDomains"
+    return response
+
+
 app.include_router(auth_router.router)
 app.include_router(records_router.router)
 app.include_router(reports_router.router)

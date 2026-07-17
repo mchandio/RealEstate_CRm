@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+
+echo "Removing Real Estate CRM..."
+
+# Stop and disable systemd service
+if systemctl --version >/dev/null 2>&1; then
+    systemctl stop realestate-crm.service 2>/dev/null || true
+    systemctl disable realestate-crm.service 2>/dev/null || true
+fi
+
+# Remove desktop launcher
+rm -f /usr/share/applications/realestate-crm.desktop
+
+# Remove icon
+rm -f /usr/share/icons/hicolor/256x256/apps/realestate-crm.png
+gtk-update-icon-cache -q /usr/share/icons/hicolor/ 2>/dev/null || true
+
+echo "Cleanup completed."
