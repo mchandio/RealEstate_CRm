@@ -894,42 +894,6 @@ health_check() {
 
 
 ###############################################################################
-# Final Startup Sequence
-###############################################################################
-
-# Update main() to include:
-#
-# load_environment
-# apply_environment_overrides
-# health_check
-# print_runtime
-#
-# Example order:
-#
-# main() {
-#     banner
-#     parse_arguments "$@"
-#     load_environment
-#     apply_environment_overrides
-#     validate_port
-#     check_operating_system
-#     check_python
-#     create_virtualenv
-#     ensure_pip
-#     check_internet
-#     validate_project
-#     install_dependencies
-#     initialize_database
-#     health_check
-#     check_display
-#     check_port_available
-#     print_startup_information
-#     print_summary
-#     print_runtime
-#     launch_application
-# }
-
-###############################################################################
 # ShellCheck Notes
 ###############################################################################
 
