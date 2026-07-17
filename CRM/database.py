@@ -15,7 +15,7 @@ def ensure_database() -> None:
 
 def _create_core_tables() -> None:
     """Create the foundational tables that professional_crm.Database.init_all() used to handle."""
-    import hashlib as _hashlib
+    import bcrypt as _bcrypt
     with sqlite3.connect(str(DB_PATH)) as conn:
         cur = conn.cursor()
         cur.execute("PRAGMA journal_mode=WAL")
@@ -132,7 +132,7 @@ def _create_core_tables() -> None:
         # Seed default admin user if none exist
         cur.execute("SELECT COUNT(*) as cnt FROM users")
         if cur.fetchone()[0] == 0:
-            pwd_hash = _hashlib.sha256("admin".encode()).hexdigest()
+            pwd_hash = _bcrypt.hashpw("admin".encode(), _bcrypt.gensalt()).decode()
             cur.execute(
                 "INSERT INTO users (username, password_hash, full_name, email, role, is_active, created_at) "
                 "VALUES (?,?,?,?,?,1,?)",

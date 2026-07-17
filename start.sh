@@ -503,7 +503,7 @@ initialize_database() {
 
     info "Initializing database..."
 
-    "$VENV_PYTHON" "$SCRIPT_DIR/database_setup.py"
+    "$VENV_PYTHON" -c "from CRM.database import ensure_database; ensure_database()"
 
     if ! file_exists "$DATABASE"; then
 
@@ -783,6 +783,10 @@ main() {
 
     parse_arguments "$@"
 
+    load_environment
+
+    apply_environment_overrides
+
     validate_port
 
     check_operating_system
@@ -803,6 +807,8 @@ main() {
 
     initialize_database
 
+    health_check
+
     check_display
 
     check_port_available
@@ -810,6 +816,8 @@ main() {
     print_startup_information
 
     print_summary
+
+    print_runtime
 
     launch_application
 
