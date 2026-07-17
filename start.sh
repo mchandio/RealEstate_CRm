@@ -883,8 +883,7 @@ health_check() {
     info "Running pre-launch health checks..."
 
     if ! file_exists "$DATABASE"; then
-        error "Database missing."
-        exit 1
+        warn "Database not found yet - will be created during initialization."
     fi
 
     success "Health check passed."
