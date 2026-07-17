@@ -817,8 +817,6 @@ main() {
 
     print_summary
 
-    print_runtime
-
     launch_application
 
 }
